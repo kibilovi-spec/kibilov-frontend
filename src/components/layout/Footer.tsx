@@ -76,7 +76,7 @@ export function Footer() {
               <li className="flex items-start gap-2 text-white/60">
                 <span>📞</span>
                 <div>
-                  <a href="tel:+995555000000" className="hover:text-white transition-colors">+995 555 000 000</a>
+                  <a href="tel:+995577575052" className="hover:text-white transition-colors">+995 577 575 052</a>
                   <div className="text-xs text-white/40 mt-0.5">WhatsApp</div>
                 </div>
               </li>
