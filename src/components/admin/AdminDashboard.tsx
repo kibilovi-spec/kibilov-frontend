@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AdminLayout } from './AdminLayout';
-import { useLang } from '@/store';
+import { useLang, useAuth } from '@/store';
 import api from '@/lib/api';
 import Link from 'next/link';
 
@@ -29,10 +30,14 @@ const STATUS_KA: Record<string, string> = {
 export function AdminDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) { router.push('/auth'); return; }
+    if (user.role !== 'ADMIN') { router.push('/'); return; }
     api.get('/api/admin/dashboard').then(r => setData(r.data)).catch(console.error).finally(() => setLoading(false));
-  }, []);
+  }, [user]);
 
   const StatCard = ({ icon, label, value, sub, color }: any) => (
     <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
