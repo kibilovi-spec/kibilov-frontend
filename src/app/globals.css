@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --blue: #1565C0;
+  --blue-dark: #0D47A1;
+  --blue-mid: #1976D2;
+  --blue-light: #E3F2FD;
+  --blue-hover: #1E88E5;
+  --orange: #FF6600;
+  --gray-bg: #F4F6F9;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', 'Noto Sans Georgian', sans-serif;
+  background: #F4F6F9;
+  color: #1A2130;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-hover active:bg-primary-dark text-white font-semibold
+           px-5 py-2.5 rounded-xl transition-colors duration-150 inline-flex items-center justify-center
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-outline {
+    @apply border-2 border-primary text-primary hover:bg-primary hover:text-white font-semibold
+           px-5 py-2.5 rounded-xl transition-colors duration-150 inline-flex items-center justify-center
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-accent {
+    @apply bg-accent hover:bg-accent-dark text-white font-semibold
+           px-5 py-2.5 rounded-xl transition-colors duration-150 inline-flex items-center justify-center;
+  }
+
+  .input-field {
+    @apply w-full border border-gray-2 rounded-xl px-4 py-2.5 text-dark bg-white
+           focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10
+           placeholder:text-text3 transition-colors;
+  }
+
+  .input-error {
+    @apply border-danger focus:border-danger focus:ring-danger/10;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl border border-gray-1 shadow-sm;
+  }
+
+  .page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-title {
+    @apply text-2xl md:text-3xl font-extrabold text-dark;
+  }
+
+  .badge-SALE { @apply bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md; }
+  .badge-NEW  { @apply bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md; }
+  .badge-TOP  { @apply bg-purple-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md; }
+  .badge-HOT  { @apply bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md; }
+}
+
+/* Smooth scroll */
+html { scroll-behavior: smooth; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #F4F6F9; }
+::-webkit-scrollbar-thumb { background: #B0BAC8; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #6B7A8D; }
