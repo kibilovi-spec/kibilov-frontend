@@ -46,9 +46,9 @@ export function AdminProducts() {
     setSyncing(true); setSyncMsg('');
     try {
       const r = await api.post('/api/fina/sync');
-      setSyncMsg(`✅ სინქრ.: ${r.data.synced} პროდ. | ${r.data.updated} განახლ.`);
+      setSyncMsg('sync: ' + r.data.synced + ' prod | ' + r.data.updated + ' updated');
       fetch();
-    } catch { setSyncMsg('❌ სინქრ. შეცდომა'); } finally { setSyncing(false); }
+    } catch { setSyncMsg('sync error'); } finally { setSyncing(false); }
   };
 
   const addProduct = async () => {
@@ -63,7 +63,7 @@ export function AdminProducts() {
       setAdding(false);
       setNewProduct({nameKa:'',nameEn:'',sku:'',brand:'',price:'',stock:'',description:''});
       fetch();
-    } catch(e:any){ alert('შეცდომა: '+e.message); } finally { setSaving(false); }
+    } catch(e:any){ alert('error: '+e.message); } finally { setSaving(false); }
   };
 
   return (
@@ -74,35 +74,35 @@ export function AdminProducts() {
           <div className="flex gap-2 flex-wrap">
             <button onClick={syncFina} disabled={syncing}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-60">
-              {syncing ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '🔄'}
-              FINA სინქრ.
+              {syncing ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : null}
+              FINA sync
             </button>
             <label className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm cursor-pointer hover:bg-green-700 transition">
-              📥 Excel Import
+              Excel Import
               <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={async(e)=>{
                 const file = e.target.files?.[0]; if(!file) return;
                 const fd = new FormData(); fd.append('file', file);
                 try {
                   const r = await api.post('/api/admin/products/import', fd, {headers:{'Content-Type':'multipart/form-data'}});
-                  alert(`დამატდა: ${r.data.added}, განახლდა: ${r.data.updated}`);
+                  alert('added: ' + r.data.added + ', updated: ' + r.data.updated);
                   fetch();
-                } catch(e:any){ alert('შეცდომა: '+e.message); }
+                } catch(e:any){ alert('error: '+e.message); }
               }} />
             </label>
             <button onClick={()=>setAdding(true)}
               className="bg-green-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-800 transition">
-              ➕ პროდუქტის დამატება
+              + პროდუქტის დამატება
             </button>
           </div>
         </div>
         {syncMsg && <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">{syncMsg}</div>}
 
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-wrap gap-3">
-          <input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="🔍 სახელი, SKU, ბრენდი..."
+          <input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="სახელი, SKU, ბრენდი..."
             className="border rounded-lg px-3 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
           <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
             <input type="checkbox" checked={filterLow} onChange={e=>{ setFilterLow(e.target.checked); setPage(1); }} className="rounded"/>
-            ⚠️ ბოლოვდება
+            ბოლოვდება
           </label>
           <button onClick={fetch} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition">განახლება</button>
         </div>
@@ -133,13 +133,9 @@ export function AdminProducts() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-500">{p.brand||'—'}</td>
+                    <td className="px-4 py-3"><span className="font-semibold">{parseFloat(p.price).toFixed(2)}₾</span></td>
                     <td className="px-4 py-3">
-                      <span className="font-semibold">{parseFloat(p.price).toFixed(2)}₾</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`font-semibold ${p.stock === 0 ? 'text-red-600' : p.stock <= 3 ? 'text-yellow-600' : 'text-green-600'}`}>
-                        {p.stock}
-                      </span>
+                      <span className={`font-semibold ${p.stock === 0 ? 'text-red-600' : p.stock <= 3 ? 'text-yellow-600' : 'text-green-600'}`}>{p.stock}</span>
                     </td>
                     <td className="px-4 py-3">
                       {p.stock === 0 ? <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs">გათავდა</span>
@@ -166,3 +162,56 @@ export function AdminProducts() {
 
       {editing && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setEditing(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6" onClick={e=>e.stopPropagation()}>
+            <h3 className="font-bold text-lg mb-2">მარაგის განახლება</h3>
+            <p className="text-sm text-gray-500 mb-4">{editing.nameKa||editing.nameEn}</p>
+            <div className="flex gap-2 items-center mb-4">
+              <button onClick={()=>setStockVal(v=>String(Math.max(0,parseInt(v||'0')-1)))} className="w-10 h-10 rounded-lg border text-xl font-bold hover:bg-gray-100">-</button>
+              <input type="number" value={stockVal} onChange={e=>setStockVal(e.target.value)} min="0"
+                className="flex-1 border rounded-lg px-3 py-2 text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+              <button onClick={()=>setStockVal(v=>String(parseInt(v||'0')+1))} className="w-10 h-10 rounded-lg border text-xl font-bold hover:bg-gray-100">+</button>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={()=>setEditing(null)} className="flex-1 border rounded-lg py-2 text-sm hover:bg-gray-50">გაუქმება</button>
+              <button onClick={updateStock} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm hover:bg-blue-700">შენახვა</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {adding && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setAdding(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md p-6" onClick={e=>e.stopPropagation()}>
+            <h3 className="font-bold text-lg mb-4">ახალი პროდუქტი</h3>
+            <div className="space-y-3">
+              <input placeholder="სახელი (ქართულად) *" value={newProduct.nameKa} onChange={e=>setNewProduct({...newProduct,nameKa:e.target.value})}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+              <input placeholder="სახელი (ინგლისურად)" value={newProduct.nameEn} onChange={e=>setNewProduct({...newProduct,nameEn:e.target.value})}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+              <div className="grid grid-cols-2 gap-3">
+                <input placeholder="SKU *" value={newProduct.sku} onChange={e=>setNewProduct({...newProduct,sku:e.target.value})}
+                  className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                <input placeholder="ბრენდი" value={newProduct.brand} onChange={e=>setNewProduct({...newProduct,brand:e.target.value})}
+                  className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input placeholder="ფასი" type="number" value={newProduct.price} onChange={e=>setNewProduct({...newProduct,price:e.target.value})}
+                  className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                <input placeholder="მარაგი" type="number" value={newProduct.stock} onChange={e=>setNewProduct({...newProduct,stock:e.target.value})}
+                  className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+              </div>
+              <textarea placeholder="აღწერა" value={newProduct.description} onChange={e=>setNewProduct({...newProduct,description:e.target.value})}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none"/>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={()=>setAdding(false)} className="flex-1 border rounded-lg py-2 text-sm hover:bg-gray-50">გაუქმება</button>
+              <button onClick={addProduct} disabled={saving} className="flex-1 bg-green-600 text-white rounded-lg py-2 text-sm hover:bg-green-700 disabled:opacity-60">
+                {saving ? 'ინახება...' : 'დამატება'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </AdminLayout>
+  );
+}
