@@ -59,7 +59,16 @@ export function AdminProducts() {
             {syncing ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '🔄'}
             FINA სინქრ.
           </button>
-        </div>
+<label className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm cursor-pointer hover:bg-green-700 transition">
+            📥 Excel Import
+            <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={async(e)=>{
+              const file = e.target.files?.[0]; if(!file) return;
+              const fd = new FormData(); fd.append('file', file);
+              try { const r = await api.post('/api/admin/products/import', fd, {headers:{'Content-Type':'multipart/form-data'}});
+              alert(`დამატდა: ${r.data.added}, განახლდა: ${r.data.updated}`); fetch(); }
+              catch(e:any){ alert('შეცდომა: ' + e.message); }
+            }} />
+          </label>        </div>
         {syncMsg && <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">{syncMsg}</div>}
 
         {/* Filters */}
