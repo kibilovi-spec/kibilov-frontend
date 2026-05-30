@@ -70,7 +70,7 @@ export function AdminProducts() {
     <AdminLayout>
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h1 className="text-2xl font-bold text-gray-800">🛍️ პროდუქტები</h1>
+          <h1 className="text-2xl font-bold text-gray-800">პროდუქტები</h1>
           <div className="flex gap-2 flex-wrap">
             <button onClick={syncFina} disabled={syncing}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-60">
