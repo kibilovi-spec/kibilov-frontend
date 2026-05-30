@@ -16,6 +16,9 @@ export function AdminProducts() {
   const [stockVal, setStockVal] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [newProduct, setNewProduct] = useState({nameKa:'',nameEn:'',sku:'',brand:'',price:'',stock:'',description:''});
+  const [saving, setSaving] = useState(false);
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -35,8 +38,7 @@ export function AdminProducts() {
     if (!editing) return;
     try {
       await api.patch(`/api/admin/products/${editing.id}/stock`, { stock: parseInt(stockVal) });
-      setEditing(null);
-      fetch();
+      setEditing(null); fetch();
     } catch { alert('შეცდომა'); }
   };
 
@@ -49,29 +51,52 @@ export function AdminProducts() {
     } catch { setSyncMsg('❌ სინქრ. შეცდომა'); } finally { setSyncing(false); }
   };
 
+  const addProduct = async () => {
+    if (!newProduct.nameKa || !newProduct.sku) return alert('სახელი და SKU სავალდებულოა');
+    setSaving(true);
+    try {
+      await api.post('/api/products', {
+        ...newProduct,
+        price: parseFloat(newProduct.price)||0,
+        stock: parseInt(newProduct.stock)||0,
+      });
+      setAdding(false);
+      setNewProduct({nameKa:'',nameEn:'',sku:'',brand:'',price:'',stock:'',description:''});
+      fetch();
+    } catch(e:any){ alert('შეცდომა: '+e.message); } finally { setSaving(false); }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h1 className="text-2xl font-bold text-gray-800">🛍️ პროდუქტები</h1>
-          <button onClick={syncFina} disabled={syncing}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-60">
-            {syncing ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '🔄'}
-            FINA სინქრ.
-          </button>
-<label className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm cursor-pointer hover:bg-green-700 transition">
-            📥 Excel Import
-            <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={async(e)=>{
-              const file = e.target.files?.[0]; if(!file) return;
-              const fd = new FormData(); fd.append('file', file);
-              try { const r = await api.post('/api/admin/products/import', fd, {headers:{'Content-Type':'multipart/form-data'}});
-              alert(`დამატდა: ${r.data.added}, განახლდა: ${r.data.updated}`); fetch(); }
-              catch(e:any){ alert('შეცდომა: ' + e.message); }
-            }} />
-          </label>        </div>
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={syncFina} disabled={syncing}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-60">
+              {syncing ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '🔄'}
+              FINA სინქრ.
+            </button>
+            <label className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm cursor-pointer hover:bg-green-700 transition">
+              📥 Excel Import
+              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={async(e)=>{
+                const file = e.target.files?.[0]; if(!file) return;
+                const fd = new FormData(); fd.append('file', file);
+                try {
+                  const r = await api.post('/api/admin/products/import', fd, {headers:{'Content-Type':'multipart/form-data'}});
+                  alert(`დამატდა: ${r.data.added}, განახლდა: ${r.data.updated}`);
+                  fetch();
+                } catch(e:any){ alert('შეცდომა: '+e.message); }
+              }} />
+            </label>
+            <button onClick={()=>setAdding(true)}
+              className="bg-green-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-800 transition">
+              ➕ პროდუქტის დამატება
+            </button>
+          </div>
+        </div>
         {syncMsg && <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">{syncMsg}</div>}
 
-        {/* Filters */}
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-wrap gap-3">
           <input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="🔍 სახელი, SKU, ბრენდი..."
             className="border rounded-lg px-3 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
@@ -110,7 +135,6 @@ export function AdminProducts() {
                     <td className="px-4 py-3 text-gray-500">{p.brand||'—'}</td>
                     <td className="px-4 py-3">
                       <span className="font-semibold">{parseFloat(p.price).toFixed(2)}₾</span>
-                      {p.priceOld && <span className="text-xs text-gray-400 line-through ml-1">{parseFloat(p.priceOld).toFixed(2)}₾</span>}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`font-semibold ${p.stock === 0 ? 'text-red-600' : p.stock <= 3 ? 'text-yellow-600' : 'text-green-600'}`}>
@@ -140,25 +164,5 @@ export function AdminProducts() {
         </div>
       </div>
 
-      {/* Stock Edit Modal */}
       {editing && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setEditing(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6" onClick={e=>e.stopPropagation()}>
-            <h3 className="font-bold text-lg mb-2">მარაგის განახლება</h3>
-            <p className="text-sm text-gray-500 mb-4">{editing.nameKa||editing.nameEn}</p>
-            <div className="flex gap-2 items-center mb-4">
-              <button onClick={()=>setStockVal(v=>String(Math.max(0,parseInt(v||'0')-1)))} className="w-10 h-10 rounded-lg border text-xl font-bold hover:bg-gray-100">-</button>
-              <input type="number" value={stockVal} onChange={e=>setStockVal(e.target.value)} min="0"
-                className="flex-1 border rounded-lg px-3 py-2 text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-              <button onClick={()=>setStockVal(v=>String(parseInt(v||'0')+1))} className="w-10 h-10 rounded-lg border text-xl font-bold hover:bg-gray-100">+</button>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={()=>setEditing(null)} className="flex-1 border rounded-lg py-2 text-sm hover:bg-gray-50">გაუქმება</button>
-              <button onClick={updateStock} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm hover:bg-blue-700">შენახვა</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </AdminLayout>
-  );
-}
