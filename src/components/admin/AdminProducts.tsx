@@ -17,7 +17,7 @@ export function AdminProducts() {
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
   const [adding, setAdding] = useState(false);
-  const [newProduct, setNewProduct] = useState({nameKa:'',nameEn:'',sku:'',brand:'',price:'',stock:'',description:''});
+  const [newProduct, setNewProduct] = useState({nameKa:'',nameEn:'',sku:'',brand:'',articleNumber:'',price:'',stock:'',description:''});
   const [saving, setSaving] = useState(false);
 
   const fetch = useCallback(async () => {
@@ -61,7 +61,7 @@ export function AdminProducts() {
         stock: parseInt(newProduct.stock)||0,
       });
       setAdding(false);
-      setNewProduct({nameKa:'',nameEn:'',sku:'',brand:'',price:'',stock:'',description:''});
+      setNewProduct({nameKa:'',nameEn:'',sku:'',brand:'',articleNumber:'',price:'',stock:'',description:''});
       fetch();
     } catch(e:any){ alert('error: '+e.message); } finally { setSaving(false); }
   };
@@ -89,6 +89,10 @@ export function AdminProducts() {
                 } catch(e:any){ alert('error: '+e.message); }
               }} />
             </label>
+            <a href="/sample-import.xlsx" download
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition">
+              ნიმუში Excel
+            </a>
             <button onClick={()=>setAdding(true)}
               className="bg-green-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-800 transition">
               + პროდუქტის დამატება
@@ -111,15 +115,15 @@ export function AdminProducts() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
-                <tr>{['SKU','სახელი','ბრენდი','ფასი','მარაგი','სტატუსი',''].map(h=>(
+                <tr>{['SKU','სახელი','ბრენდი','OEM','ფასი','მარაგი','სტატუსი',''].map(h=>(
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
                 ))}</tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr><td colSpan={7} className="py-12 text-center"><div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"/></td></tr>
+                  <tr><td colSpan={8} className="py-12 text-center"><div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"/></td></tr>
                 ) : products.length === 0 ? (
-                  <tr><td colSpan={7} className="py-12 text-center text-gray-400">პროდუქტები ვერ მოიძებნა</td></tr>
+                  <tr><td colSpan={8} className="py-12 text-center text-gray-400">პროდუქტები ვერ მოიძებნა</td></tr>
                 ) : products.map((p:any) => (
                   <tr key={p.id} className={`hover:bg-gray-50 ${p.stock <= 3 ? 'bg-red-50' : ''}`}>
                     <td className="px-4 py-3 font-mono text-xs text-gray-500">{p.sku}</td>
@@ -133,6 +137,7 @@ export function AdminProducts() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-500">{p.brand||'—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{p.articleNumber||'—'}</td>
                     <td className="px-4 py-3"><span className="font-semibold">{parseFloat(p.price).toFixed(2)}₾</span></td>
                     <td className="px-4 py-3">
                       <span className={`font-semibold ${p.stock === 0 ? 'text-red-600' : p.stock <= 3 ? 'text-yellow-600' : 'text-green-600'}`}>{p.stock}</span>
@@ -184,20 +189,22 @@ export function AdminProducts() {
           <div className="bg-white rounded-2xl w-full max-w-md p-6" onClick={e=>e.stopPropagation()}>
             <h3 className="font-bold text-lg mb-4">ახალი პროდუქტი</h3>
             <div className="space-y-3">
-              <input placeholder="სახელი (ქართულად) *" value={newProduct.nameKa} onChange={e=>setNewProduct({...newProduct,nameKa:e.target.value})}
+              <input placeholder="სახელი ქართულად *" value={newProduct.nameKa} onChange={e=>setNewProduct({...newProduct,nameKa:e.target.value})}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-              <input placeholder="სახელი (ინგლისურად)" value={newProduct.nameEn} onChange={e=>setNewProduct({...newProduct,nameEn:e.target.value})}
+              <input placeholder="სახელი ინგლისურად" value={newProduct.nameEn} onChange={e=>setNewProduct({...newProduct,nameEn:e.target.value})}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
               <div className="grid grid-cols-2 gap-3">
-                <input placeholder="SKU *" value={newProduct.sku} onChange={e=>setNewProduct({...newProduct,sku:e.target.value})}
+                <input placeholder="SKU (თქვენი კოდი) *" value={newProduct.sku} onChange={e=>setNewProduct({...newProduct,sku:e.target.value})}
                   className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
                 <input placeholder="ბრენდი" value={newProduct.brand} onChange={e=>setNewProduct({...newProduct,brand:e.target.value})}
                   className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
               </div>
+              <input placeholder="OEM კოდი (ნაწილის ორიგინალური ნომერი)" value={newProduct.articleNumber} onChange={e=>setNewProduct({...newProduct,articleNumber:e.target.value})}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
               <div className="grid grid-cols-2 gap-3">
-                <input placeholder="ფასი" type="number" value={newProduct.price} onChange={e=>setNewProduct({...newProduct,price:e.target.value})}
+                <input placeholder="ფასი (ლარი)" type="number" value={newProduct.price} onChange={e=>setNewProduct({...newProduct,price:e.target.value})}
                   className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-                <input placeholder="მარაგი" type="number" value={newProduct.stock} onChange={e=>setNewProduct({...newProduct,stock:e.target.value})}
+                <input placeholder="მარაგი (ცალი)" type="number" value={newProduct.stock} onChange={e=>setNewProduct({...newProduct,stock:e.target.value})}
                   className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
               </div>
               <textarea placeholder="აღწერა" value={newProduct.description} onChange={e=>setNewProduct({...newProduct,description:e.target.value})}
