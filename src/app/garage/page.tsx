@@ -141,6 +141,14 @@ export default function GaragePage() {
     } catch {}
   }
 
+  async function handleSetMain(id: string) {
+    try {
+      await api.patch(`/api/garage/${id}/main`);
+      toast.success('მთავარ მანქანად დაყენდა');
+      loadVehicles();
+    } catch { toast.error('შეცდომა'); }
+  }
+
   async function handleSelect(car: any) {
     if (car.vehicleId) setVehicleId(car.vehicleId);
     toast.success(`${car.make} ${car.model} არჩეულია`);
@@ -242,11 +250,23 @@ export default function GaragePage() {
                 {car.engine && <p className="text-sm text-gray-500">{car.engine}</p>}
                 {car.isMain && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">მთავარი</span>}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-1.5">
                 <button onClick={() => handleSelect(car)}
                   className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">
                   არჩევა
                 </button>
+                {car.vehicle_id && (
+                  <a href={`/vin/${car.vehicle_id}/100001`}
+                    className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition text-center">
+                    🔧 ნაწილები
+                  </a>
+                )}
+                {!car.isMain && (
+                  <button onClick={() => handleSetMain(car.id)}
+                    className="px-3 py-1.5 border border-blue-200 text-blue-600 text-sm rounded-lg hover:bg-blue-50 transition">
+                    ⭐ მთავარი
+                  </button>
+                )}
                 <button onClick={() => handleDelete(car.id)}
                   className="px-3 py-1.5 border border-red-200 text-red-500 text-sm rounded-lg hover:bg-red-50 transition">
                   ✕
