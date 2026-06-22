@@ -3,6 +3,8 @@ const { withSentryConfig } = require('@sentry/nextjs');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: { instrumentationHook: true },
+  compress: true,
+  poweredByHeader: false,
   async rewrites() {
     return [
       {
@@ -17,6 +19,8 @@ const nextConfig = {
   },
   images: {
     domains: ['localhost', 'kibilov.ge', 'cdn.kibilov.ge'],
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 86400,
     remotePatterns: [
       { protocol: 'http',  hostname: 'localhost', port: '3001' },
       { protocol: 'https', hostname: '**' },
