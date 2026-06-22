@@ -5,6 +5,7 @@ import ProductReviews from "@/components/ProductReviews";
 import FitsVehicles from '@/components/FitsVehicles';
 import { ProductCard } from '@/components/shop/index';
 import ProductActions from '@/components/products/ProductActions';
+import CrossReference from '@/components/products/CrossReference';
 
 export const dynamic = 'force-dynamic';
 
@@ -125,6 +126,9 @@ export default async function ProductPage({ params }: { params: { id: string } }
           </div>
         )}
 
+        <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+          <CrossReference sku={p.sku || ''} />
+        </div>
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
           <FitsVehicles oemCode={(p.oemCodes && p.oemCodes.find((c:string) => !c.includes(":"))) || (p.oemCodes && p.oemCodes[0]) || p.oem || p.sku || ""} />
         </div>
