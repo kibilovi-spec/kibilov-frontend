@@ -1,0 +1,435 @@
+'use client';
+// This file contains all page-level components
+// Each is used by the corresponding page.tsx
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { useLang } from '@/store';
+import { useVehicleStore } from '@/store/vehicle';
+import { useT } from '@/lib/i18n';
+import api from '@/lib/api';
+import { ProductCard, FilterBar, type Filters } from '@/components/shop/index';
+import { Loader, Pagination } from '@/components/ui/index';
+import { CategoryIcon } from '@/components/ui/CategoryIcon';
+import { AutodocCategoryTree } from '@/components/AutodocCategoryTree';
+import RecentlyViewed from '@/components/RecentlyViewed';
+import { CompatibilityBanner } from '@/components/vehicle/CompatibilityBanner';
+import type { Product, Category } from '@/types';
+
+// ══════════════════════════════════════════
+// HomePage
+// ══════════════════════════════════════════
+export function HomePage() {
+  const { lang } = useLang();
+  const t = useT(lang);
+  const [categories, setCats] = useState<Category[]>([]);
+  const [featured, setFeatured] = useState<Product[]>([]);
+
+  useEffect(() => {
+    api.get(`/api/categories?lang=${lang}`).then(({data})=>setCats(data.data||[])).catch(()=>{});
+    api.get(`/api/products?featured=true&lang=${lang}&limit=8`).then(({data})=>setFeatured(data.data||[])).catch(()=>{});
+  }, [lang]);
+
+  useEffect(() => {
+    const addTilt = () => {
+      const cards = document.querySelectorAll('.product-card-item');
+      cards.forEach((card: any) => {
+        card.addEventListener('mousemove', (e: MouseEvent) => {
+          const r = card.getBoundingClientRect();
+          const x = (e.clientX - r.left) / r.width - 0.5;
+          const y = (e.clientY - r.top) / r.height - 0.5;
+          card.style.transform = `perspective(800px) rotateX(${y*-10}deg) rotateY(${x*12}deg) translateY(-4px)`;
+          card.style.boxShadow = `${x*8}px ${y*8}px 24px rgba(37,99,235,0.18)`;
+          card.style.transition = 'box-shadow 0.1s';
+        });
+        card.addEventListener('mouseleave', () => {
+          card.style.transform = '';
+          card.style.boxShadow = '';
+          card.style.transition = 'all 0.5s cubic-bezier(0.23,1,0.32,1)';
+        });
+      });
+    };
+    const timer = setTimeout(addTilt, 1000);
+    return () => clearTimeout(timer);
+  }, [featured]);
+
+  const BRANDS = [
+    {name:'BOSCH', slug:'bosch'},
+    {name:'MANN', slug:'mann-filter'},
+    {name:'NGK', slug:'ngk'},
+    {name:'SACHS', slug:'sachs'},
+    {name:'FEBI', slug:'febi-bilstein'},
+    {name:'VALEO', slug:'valeo'},
+    {name:'MAHLE', slug:'mahle'},
+    {name:'CASTROL', slug:'castrol'},
+    {name:'DENSO', slug:'denso'},
+    {name:'LIQUI MOLY', slug:'liqui-moly'},
+    {name:'MEYLE', slug:'meyle'},
+    {name:'KYB', slug:'kyb'},
+    {name:'TRW', slug:'trw'},
+    {name:'DAYCO', slug:'dayco'},
+  ];
+
+  const MAKES: Record<string,string[]> = {
+    Toyota:['Camry','Corolla','RAV4','Land Cruiser','Land Cruiser Prado','Prius','Yaris','Hilux','FJ Cruiser','Fortuner','Venza','Highlander','Sequoia','4Runner','Avensis','Auris','Alphard','Vellfire'],
+    Hyundai:['Tucson','Santa Fe','Elantra','Sonata','Accent','Creta','ix35','i30','i20','i10','Getz','Trajet','H-1','Porter','Terracan'],
+    Kia:['Sportage','Sorento','Rio','Ceed','Optima','Stinger','Carnival','Telluride','Seltos','Picanto','Cerato','Mohave','Cadenza'],
+    'Mercedes-Benz':['C-Class','E-Class','S-Class','GLE','GLC','GLA','GLK','ML-Class','Sprinter','Vito','A-Class','B-Class','CLA','CLS','G-Class'],
+    BMW:['3 Series','5 Series','7 Series','X1','X3','X5','X6','X7','1 Series','2 Series','4 Series','6 Series','M3','M5'],
+    Volkswagen:['Golf','Passat','Tiguan','Touareg','Polo','Jetta','Caddy','Transporter','Multivan','Amarok','Sharan'],
+    Nissan:['X-Trail','Qashqai','Patrol','Navara','Juke','Note','Almera','Primera','Murano','Pathfinder'],
+    Chevrolet:['Cruze','Captiva','Tahoe','Suburban','Malibu','Spark','Aveo','Lacetti','Cobalt','Traverse','Equinox','Blazer','Silverado'],
+    Mitsubishi:['Outlander','Pajero','Pajero Sport','L200','Eclipse Cross','ASX','Galant','Lancer'],
+    Honda:['CR-V','Civic','Accord','Pilot','HR-V','Jazz','Fit','Stream','Odyssey'],
+    Mazda:['CX-5','CX-9','CX-3','Mazda3','Mazda6','Mazda2','MPV','BT-50'],
+    Subaru:['Forester','Outback','Impreza','Legacy','XV','WRX'],
+    Lexus:['RX','GX','LX','NX','IS','ES','GS','LS','UX','CT'],
+    Audi:['A3','A4','A5','A6','A7','A8','Q3','Q5','Q7','Q8','TT','S4','S6'],
+    'Land Rover':['Discovery','Discovery Sport','Range Rover','Range Rover Sport','Range Rover Evoque','Freelander','Defender'],
+    Jeep:['Grand Cherokee','Cherokee','Wrangler','Compass','Patriot','Renegade'],
+    Ford:['Focus','Mondeo','Kuga','Explorer','F-150','Ranger','Transit','Escape','Edge','Fusion','Mustang'],
+    Opel:['Astra','Vectra','Zafira','Insignia','Mokka','Antara','Corsa','Meriva','Omega'],
+    Renault:['Duster','Megane','Logan','Sandero','Koleos','Fluence','Laguna','Clio','Captur','Kadjar'],
+    Peugeot:['207','208','307','308','407','408','2008','3008','5008','508','Partner'],
+    Citroen:['C3','C4','C5','C-Crosser','Berlingo','Jumper','Xsara'],
+    Skoda:['Octavia','Superb','Fabia','Rapid','Kodiaq','Karoq','Yeti'],
+    Volvo:['XC90','XC60','XC40','S60','S80','S90','V40','V60','V70','V90'],
+    Porsche:['Cayenne','Macan','Panamera','911','Boxster','Cayman'],
+    Infiniti:['QX56','QX80','QX60','FX35','FX37','G37','M37'],
+    Acura:['MDX','RDX','TL','TSX'],
+    Cadillac:['Escalade','SRX','CTS','ATS'],
+    Lincoln:['Navigator','MKX','MKZ','Town Car'],
+    Chrysler:['300C','Pacifica','Voyager'],
+    Dodge:['Durango','Journey','Charger','Challenger','RAM'],
+    GMC:['Yukon','Tahoe','Sierra','Envoy','Terrain'],
+    UAZ:['Patriot','Hunter','Pickup','452'],
+    Lada:['Niva','Granta','Vesta','Largus','Kalina','Priora','2107','2106'],
+    'Ssang Yong':['Rexton','Actyon','Kyron','Musso','Korando','Tivoli'],
+    Isuzu:['D-Max','Trooper','MU-X','NPR'],
+    Suzuki:['Grand Vitara','Vitara','Swift','SX4','Jimny'],
+    Haval:['H6','H2','H9','F7','Jolion'],
+    Geely:['Atlas','Coolray','Emgrand','MK'],
+    Chery:['Tiggo','Arrizo','QQ','Amulet'],
+  };
+  const [selectorTab,setSelectorTab]=useState<'vehicle'|'oem'>('vehicle');
+  const currentYear = new Date().getFullYear();
+  const YEARS = Array.from({length: 35}, (_,i) => String(currentYear - i));
+
+  // Vehicle Store — PostgreSQL-based, Zustand global state
+  const { vehicle, setMake, setModel, setYear, setVehicle, setEngine } = useVehicleStore();
+  const engine = vehicle.engine || '';
+  const make  = vehicle.make;
+  const model = vehicle.model;
+  const year  = vehicle.year;
+
+  const [pgMakes, setPgMakes] = useState<{id:string,name:string,is_popular:boolean}[]>([]);
+  const [pgModels, setPgModels] = useState<{id:string,name:string,yearFrom?:number,yearTo?:number}[]>([]);
+  const [pgYears, setPgYears] = useState<number[]>([]);
+  const [pgEngines, setPgEngines] = useState<{vehicle_id:string,name:string,engine?:string,fuel?:string,power_hp?:number}[]>([]);
+  const [loadingMakes, setLoadingMakes] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
+
+  // Makes — PostgreSQL
+  useEffect(() => {
+    setLoadingMakes(true);
+    fetch('/api/catalog/makes')
+      .then(r => r.json())
+      .then(d => { if (d.success) setPgMakes(d.data || []); })
+      .catch(() => {})
+      .finally(() => setLoadingMakes(false));
+  }, []);
+
+  // Models — PostgreSQL
+  useEffect(() => {
+    if (!vehicle.makeId) { setPgModels([]); setPgYears([]); return; }
+    setLoadingModels(true);
+    fetch(`/api/catalog/models?makeId=${vehicle.makeId}`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setPgModels(d.data || []); })
+      .catch(() => {})
+      .finally(() => setLoadingModels(false));
+  }, [vehicle.makeId]);
+
+  // Years — PostgreSQL
+  useEffect(() => {
+    if (!vehicle.modelId) { setPgYears([]); return; }
+    fetch(`/api/catalog/years?modelId=${vehicle.modelId}`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setPgYears(d.data || []); })
+      .catch(() => {});
+  }, [vehicle.modelId]);
+
+  // Engines — PostgreSQL (variants)
+  useEffect(() => {
+    if (!vehicle.modelId) { setPgEngines([]); return; }
+    const url = year
+      ? `/api/catalog/engines?modelId=${vehicle.modelId}&year=${year}`
+      : `/api/catalog/engines?modelId=${vehicle.modelId}`;
+    fetch(url)
+      .then(r => r.json())
+      .then(d => { if (d.success) setPgEngines(d.data || []); })
+      .catch(() => {});
+  }, [vehicle.modelId, year]);
+
+  // Resolve vehicleId when make+model+year are set
+  useEffect(() => {
+    if (!make || !model) return;
+    fetch(`/api/catalog/resolve?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}${year?'&year='+year:''}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) setVehicle({
+          makeId:    d.makeId,
+          modelId:   d.modelId,
+          vehicleId: d.vehicleId,
+        });
+      })
+      .catch(() => {});
+  }, [make, model, year]);
+
+  const PROMOS = [
+    {icon:'🚚',title:t.freeDelivery,desc:t.freeDeliveryDesc},
+    {icon:'✅',title:t.originalParts,desc:t.originalDesc},
+    {icon:'🔄',title:t.returnPolicy,desc:t.returnDesc},
+    {icon:'🔧',title:t.expertHelp,desc:t.expertDesc},
+  ];
+
+  return (
+    <div style={{background:'#f1f5f9',minHeight:'100vh'}}>
+
+      <div style={{background:'#163050',padding:'0 24px',display:'flex',overflowX:'auto'}}>
+        {[['🔧 სამუხრუჭე','brake'],['⚙️ ძრავი','engine'],['🔩 სამოჭერი','suspension'],['💡 ელექტრიკა','electrical'],['❄️ გაგრილება','cooling'],['🛢️ ზეთი','filters'],['🔄 კოლოფი','transmission'],['🚗 კარავანი','body']].map(([label,cat])=>(
+          <Link key={String(cat)} href={`/products?category=${cat}`} style={{color:'#93c5fd',fontSize:'12px',padding:'10px 14px',whiteSpace:'nowrap',borderBottom:'2px solid transparent',textDecoration:'none',display:'block'}}>{label}</Link>
+        ))}
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'320px 1fr',background:'#fff',borderBottom:'1px solid #e2e8f0'}}>
+        <div style={{background:'#f8fafc',borderRight:'1px solid #e2e8f0',padding:'22px'}}>
+          <div style={{fontSize:'14px',fontWeight:700,color:'#1e3a5f',marginBottom:'18px'}}>ავტომობილის მიხედვით ძებნა</div>
+          <div style={{color:'#64748b',fontSize:'11px',marginBottom:'4px',display:'flex',alignItems:'center',gap:'6px',marginTop:'8px'}}>
+            <span style={{background:make?'#2563eb':'#cbd5e1',color:make?'#fff':'#64748b',width:'18px',height:'18px',borderRadius:'50%',fontSize:'9px',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>1</span>
+            <span style={{textTransform:'uppercase',letterSpacing:'0.3px',fontWeight:600}}>Make</span>
+            {loadingMakes&&<span style={{fontSize:'10px',color:'#94a3b8'}}>...</span>}
+          </div>
+          <select value={make} onChange={e=>{const sel=pgMakes.find(m=>m.name===e.target.value);if(sel)setMake(sel.name,sel.id);}} style={{width:'100%',background:'#fff',border:'1.5px solid #cbd5e1',borderRadius:'7px',padding:'10px 12px',fontSize:'13px',color:'#1e293b',outline:'none',cursor:'pointer'}}>
+            <option value="">{loadingMakes?'იტვირთება...':'— Make —'}</option>
+            {pgMakes.length>0?pgMakes.map(m=><option key={m.id} value={m.name}>{m.name}</option>):Object.keys(MAKES).sort().map(m=><option key={m} value={m}>{m}</option>)}
+          </select>
+          <div style={{color:'#64748b',fontSize:'11px',marginBottom:'4px',display:'flex',alignItems:'center',gap:'6px',marginTop:'12px'}}>
+            <span style={{background:model?'#2563eb':'#cbd5e1',color:model?'#fff':'#64748b',width:'18px',height:'18px',borderRadius:'50%',fontSize:'9px',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>2</span>
+            <span style={{textTransform:'uppercase',letterSpacing:'0.3px',fontWeight:600}}>Model</span>
+            {loadingModels&&<span style={{fontSize:'10px',color:'#94a3b8'}}>...</span>}
+          </div>
+          <select value={model} onChange={e=>{const sel=pgModels.find(m=>m.name===e.target.value);if(sel)setModel(sel.name,sel.id);}} disabled={!make} style={{width:'100%',background:'#fff',border:'1.5px solid #cbd5e1',borderRadius:'7px',padding:'10px 12px',fontSize:'13px',color:model?'#1e293b':'#94a3b8',outline:'none',cursor:'pointer',opacity:make?1:0.5}}>
+            <option value="">{loadingModels?'იტვირთება...':'— Model —'}</option>
+            {pgModels.length>0?pgModels.map(m=><option key={m.id} value={m.name}>{m.name}{m.yearFrom?` (${m.yearFrom}${m.yearTo?'-'+m.yearTo:''})`:''}</option>):make&&MAKES[make as keyof typeof MAKES]?.map(m=><option key={m} value={m}>{m}</option>)}
+          </select>
+          <div style={{color:'#64748b',fontSize:'11px',marginBottom:'4px',display:'flex',alignItems:'center',gap:'6px',marginTop:'12px'}}>
+            <span style={{background:year?'#2563eb':'#cbd5e1',color:year?'#fff':'#64748b',width:'18px',height:'18px',borderRadius:'50%',fontSize:'9px',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>3</span>
+            <span style={{textTransform:'uppercase',letterSpacing:'0.3px',fontWeight:600}}>Year</span>
+          </div>
+          <select value={year} onChange={e=>setYear(e.target.value)} disabled={!model} style={{width:'100%',background:'#fff',border:'1.5px solid #cbd5e1',borderRadius:'7px',padding:'10px 12px',fontSize:'13px',color:year?'#1e293b':'#94a3b8',outline:'none',cursor:'pointer',opacity:model?1:0.5}}>
+            <option value="">— Year —</option>
+            {(pgYears.length>0?pgYears:YEARS).map(y=><option key={y} value={String(y)}>{y}</option>)}
+          </select>
+          <div style={{color:'#64748b',fontSize:'11px',marginBottom:'4px',display:'flex',alignItems:'center',gap:'6px',marginTop:'12px'}}>
+            <span style={{background:engine?'#2563eb':'#cbd5e1',color:engine?'#fff':'#64748b',width:'18px',height:'18px',borderRadius:'50%',fontSize:'9px',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>4</span>
+            <span style={{textTransform:'uppercase',letterSpacing:'0.3px',fontWeight:600}}>Engine</span>
+          </div>
+          <select value={engine} onChange={e=>{const sel=pgEngines.find(v=>v.vehicle_id===e.target.value);if(sel){setEngine(sel.name||'');setVehicle({vehicleId:sel.vehicle_id,engine:sel.engine||sel.name});}else{setEngine('');}}} disabled={!year&&pgEngines.length===0} style={{width:'100%',background:'#fff',border:'1.5px solid #cbd5e1',borderRadius:'7px',padding:'10px 12px',fontSize:'13px',color:engine?'#1e293b':'#94a3b8',outline:'none',cursor:'pointer',opacity:(year||pgEngines.length>0)?1:0.5}}>
+            <option value="">— Engine —</option>
+            {pgEngines.map(v=><option key={v.vehicle_id} value={v.vehicle_id}>{v.engine||v.name}{v.fuel?` · ${v.fuel}`:''}{v.power_hp?` · ${v.power_hp}hp`:''}</option>)}
+          </select>
+          <button
+            disabled={!make||!model}
+            onClick={()=>{const q=`${make} ${model}${year?' '+year:''}`;window.dispatchEvent(new CustomEvent('kibilov-ai-search',{detail:q}));}}
+            style={{width:'100%',background:'#2563eb',color:'#fff',border:'none',borderRadius:'8px',padding:'12px',fontSize:'14px',fontWeight:700,cursor:(make&&model)?'pointer':'not-allowed',marginTop:'16px',opacity:(make&&model)?1:0.4}}
+          >{make&&model?`${make} ${model}${year?' '+year:''} — ძებნა →`:'ნაწილების ნახვა →'}</button>
+          {selectorTab==='oem'&&(
+            <div style={{marginTop:'14px'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'10px',margin:'14px 0',color:'#94a3b8',fontSize:'11px'}}>
+                <span style={{flex:1,height:'1px',background:'#e2e8f0',display:'block'}}/>ან OEM კოდით<span style={{flex:1,height:'1px',background:'#e2e8f0',display:'block'}}/>
+              </div>
+              <div style={{display:'flex',gap:'8px'}}>
+                <input id="oem-search-input" style={{flex:1,background:'#fff',border:'1.5px solid #cbd5e1',borderRadius:'7px',padding:'9px 11px',fontSize:'12px',color:'#1e293b',outline:'none'}} placeholder="OEM კოდი (მაგ: 2115401717)" onKeyDown={e=>{if(e.key==='Enter'){const el=document.getElementById('oem-search-input') as HTMLInputElement;if(el?.value.trim()){window.dispatchEvent(new CustomEvent('kibilov-ai-search',{detail:el.value.trim()}));el.value=''}}}}/>
+                <button onClick={()=>{const el=document.getElementById('oem-search-input') as HTMLInputElement;if(el?.value.trim()){window.dispatchEvent(new CustomEvent('kibilov-ai-search',{detail:el.value.trim()}));el.value=''}}} style={{background:'#1e3a5f',color:'#fff',border:'none',borderRadius:'7px',padding:'9px 14px',fontSize:'12px',fontWeight:600,cursor:'pointer'}}>ძებნა</button>
+              </div>
+            </div>
+          )}
+          <Link href="/garage" style={{display:'block',marginTop:'14px',background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'10px',color:'#1d4ed8',fontSize:'12px',fontWeight:600,textAlign:'center',textDecoration:'none'}}>🏠 ჩემი გარაჟი — შენახული ავტომობილები</Link>
+        </div>
+        <div style={{background:'#1e3a5f',padding:'16px',display:'flex',flexDirection:'column',gap:'12px'}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',flex:1}}>
+            <div style={{borderRadius:'10px',padding:'20px',position:'relative',overflow:'hidden',display:'flex',flexDirection:'column',justifyContent:'center',border:'1px solid rgba(255,255,255,0.15)',background:'linear-gradient(135deg,#1e3a5f,#2563eb)'}}>
+              <div style={{background:'rgba(37,99,235,0.9)',color:'#fff',fontSize:'9px',fontWeight:700,padding:'3px 10px',borderRadius:'20px',marginBottom:'10px',display:'inline-block',border:'1px solid rgba(255,255,255,0.4)',letterSpacing:'0.5px',position:'relative',zIndex:2}}>✨ KIBILOV CATALOG 2026</div>
+              <div style={{color:'#fff',fontSize:'22px',fontWeight:800,lineHeight:1.15,marginBottom:'6px',position:'relative',zIndex:2}}>7,400+<br/>ავტონაწილი</div>
+              <div style={{color:'rgba(255,255,255,0.85)',fontSize:'11px',marginBottom:'14px',position:'relative',zIndex:2}}>MEYLE · DAYCO · NISSENS · TRUCKTEC და 118 ბრენდი</div>
+              <Link href="/products" style={{background:'#fff',color:'#1e3a5f',borderRadius:'7px',padding:'8px 18px',fontSize:'12px',fontWeight:700,textDecoration:'none',display:'inline-block',alignSelf:'flex-start',position:'relative',zIndex:2}}>კატალოგი →</Link>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
+              <div style={{background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:'10px',padding:'14px',flex:1}}>
+                <div style={{color:'#93c5fd',fontSize:'10px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.8px',marginBottom:'8px'}}>📷 VIN სკანირება</div>
+                <div style={{display:'flex',gap:'6px'}}>
+                  <input style={{flex:1,background:'rgba(0,0,0,0.2)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:'7px',padding:'8px 10px',fontSize:'12px',color:'#fff',outline:'none'}} placeholder="VIN კოდი (17 სიმბოლო)" onKeyDown={e=>{if(e.key==='Enter'){const el=e.target as HTMLInputElement;if(el.value.trim()){window.dispatchEvent(new CustomEvent('kibilov-ai-search',{detail:el.value.trim()}));el.value=''}}}}/>
+                  <Link href="/garage" style={{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',color:'#fff',borderRadius:'7px',padding:'8px 10px',fontSize:'11px',textDecoration:'none',display:'flex',alignItems:'center',whiteSpace:'nowrap'}}>📷 სკანი</Link>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:'8px',margin:'8px 0',color:'#4b6a8a',fontSize:'10px'}}>
+                  <span style={{flex:1,height:'1px',background:'rgba(255,255,255,0.1)',display:'block'}}/>OEM<span style={{flex:1,height:'1px',background:'rgba(255,255,255,0.1)',display:'block'}}/>
+                </div>
+                <div style={{display:'flex',gap:'6px'}}>
+                  <input id="oem-banner-input" style={{flex:1,background:'rgba(0,0,0,0.2)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:'7px',padding:'8px 10px',fontSize:'12px',color:'#fff',outline:'none'}} placeholder="OEM კოდი..." onKeyDown={e=>{if(e.key==='Enter'){const el=e.target as HTMLInputElement;if(el.value.trim()){window.dispatchEvent(new CustomEvent('kibilov-ai-search',{detail:el.value.trim()}));el.value=''}}}}/>
+                  <button onClick={()=>{const el=document.getElementById('oem-banner-input') as HTMLInputElement;if(el?.value.trim()){window.dispatchEvent(new CustomEvent('kibilov-ai-search',{detail:el.value.trim()}));el.value=''}}} style={{background:'#2563eb',color:'#fff',border:'none',borderRadius:'7px',padding:'8px 12px',fontSize:'12px',fontWeight:600,cursor:'pointer'}}>ძებნა</button>
+                </div>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px'}}>
+                {[['7,442','პროდ.'],['122','ბრენდი'],['24,434','OEM']].map(([num,lbl])=>(
+                  <div key={String(lbl)} style={{background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'8px',padding:'10px',textAlign:'center'}}>
+                    <div style={{color:'#60a5fa',fontSize:'16px',fontWeight:800}}>{num}</div>
+                    <div style={{color:'#93c5fd',fontSize:'9px',marginTop:'2px',textTransform:'uppercase',letterSpacing:'0.3px'}}>{lbl}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{background:'#fff',padding:'16px 24px',borderBottom:'1px solid #f1f5f9'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px'}}>
+          {PROMOS.map(p=>(
+            <div key={p.title} style={{background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'10px',padding:'12px',display:'flex',alignItems:'center',gap:'10px'}}>
+              <span style={{fontSize:'22px'}}>{p.icon}</span>
+              <div><div style={{fontSize:'11px',fontWeight:700,color:'#1e3a5f'}}>{p.title}</div><div style={{fontSize:'10px',color:'#94a3b8',marginTop:'1px'}}>{p.desc}</div></div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{background:'#fff',padding:'20px 24px',borderBottom:'1px solid #f1f5f9'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
+          <h2 style={{fontSize:'15px',fontWeight:800,color:'#1e3a5f',display:'flex',alignItems:'center',gap:'8px'}}><span style={{display:'inline-block',width:'3px',height:'18px',background:'#2563eb',borderRadius:'2px'}}/>კატეგორიები</h2>
+          <Link href="/products" style={{color:'#2563eb',fontSize:'11px',fontWeight:600,textDecoration:'none'}}>ყველა კატეგორია →</Link>
+        </div>
+        <AutodocCategoryTree className="w-full" />
+      </div>
+      <div style={{background:'#fff',padding:'20px 24px',borderBottom:'1px solid #f1f5f9'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
+          <h2 style={{fontSize:'15px',fontWeight:800,color:'#1e3a5f',display:'flex',alignItems:'center',gap:'8px'}}><span style={{display:'inline-block',width:'3px',height:'18px',background:'#2563eb',borderRadius:'2px'}}/>{t.popularBrands}</h2>
+          <Link href="/brands" style={{color:'#2563eb',fontSize:'11px',fontWeight:600,textDecoration:'none'}}>ყველა ბრენდი →</Link>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'10px'}}>
+          {BRANDS.map(b=>(
+            <Link key={b.name} href={`/products?brand=${b.name}`} prefetch={false} style={{background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'10px',padding:'12px',display:'flex',flexDirection:'column',alignItems:'center',gap:'6px',textDecoration:'none'}}>
+              <div style={{height:'36px',display:'flex',alignItems:'center',justifyContent:'center',width:'100%'}}>
+                <img src={`/images/brands/${b.slug}.png`} alt={b.name} style={{maxHeight:'32px',maxWidth:'100%',objectFit:'contain'}} onError={(e)=>{const t=e.target as HTMLImageElement;t.style.display='none';(t.nextSibling as HTMLElement)?.style&&((t.nextSibling as HTMLElement).style.display='block');}}/>
+                <span style={{display:'none',fontSize:'10px',fontWeight:700,color:'#374151'}}>{b.name}</span>
+              </div>
+              <span style={{fontSize:'9px',fontWeight:600,color:'#94a3b8'}}>{b.name}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+      <div style={{background:'#fff',padding:'20px 24px',borderBottom:'1px solid #f1f5f9'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
+          <h2 style={{fontSize:'15px',fontWeight:800,color:'#1e3a5f',display:'flex',alignItems:'center',gap:'8px'}}><span style={{display:'inline-block',width:'3px',height:'18px',background:'#2563eb',borderRadius:'2px'}}/>{t.popularParts}</h2>
+          <Link href="/products" style={{color:'#2563eb',fontSize:'11px',fontWeight:600,textDecoration:'none'}}>{t.seeAll}</Link>
+        </div>
+        {featured.length===0?<Loader/>:(
+          <div id="kibilov-prodgrid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'16px'}}>
+            {featured.map(p=><ProductCard key={p.id} product={p}/>)}
+          </div>
+        )}
+      </div>
+      <div style={{padding:'16px 24px'}}>
+        <div style={{background:'linear-gradient(135deg,#064e3b,#059669)',borderRadius:'10px',padding:'24px 28px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <h3 style={{color:'#fff',fontSize:'16px',fontWeight:800,marginBottom:'4px'}}>B2B საბითუმო პორტალი</h3>
+            <p style={{color:'#a7f3d0',fontSize:'12px'}}>სერვის ცენტრებისთვის, მაღაზიებისთვის — სპეციალური ფასები</p>
+          </div>
+          <div style={{display:'flex',gap:'10px'}}>
+            <Link href="/b2b" style={{background:'#fff',color:'#059669',borderRadius:'7px',padding:'10px 22px',fontSize:'12px',fontWeight:700,textDecoration:'none'}}>B2B შესვლა</Link>
+            <Link href="/b2b-apply" style={{background:'transparent',color:'#fff',border:'1px solid rgba(255,255,255,0.35)',borderRadius:'7px',padding:'10px 22px',fontSize:'12px',textDecoration:'none'}}>რეგისტრაცია</Link>
+          </div>
+        </div>
+      </div>
+      <RecentlyViewed />
+    </div>
+  );
+}
+// ══════════════════════════════════════════
+// ProductsPage
+// ══════════════════════════════════════════
+export function ProductsPage({ searchParams }: { searchParams?: Record<string,string> }) {
+  const { lang } = useLang();
+  const t = useT(lang);
+  const router = useRouter();
+  const urlParams = useSearchParams();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [pagination, setPagination] = useState({ page:1, pages:1, total:0 });
+  const [brands, setBrands] = useState<string[]>([]);
+  const [cats, setCats] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const getFiltersFromUrl = () => {
+    const p: Record<string,any> = { page: 1 };
+    urlParams.forEach((v, k) => { p[k] = v === 'true' ? true : v === 'false' ? false : v; });
+    return p;
+  };
+  const [filters, setFilters] = useState<Filters>(Object.keys(searchParams||{}).length ? {...searchParams, page:1} : getFiltersFromUrl() as any);
+
+  useEffect(() => {
+    api.get(`/api/categories?lang=${lang}`).then(({data}) => setCats(data.data || [])).catch(() => {});
+  }, [lang]);
+
+  const load = useCallback(async (f: Filters) => {
+    setLoading(true);
+    try {
+      const p = new URLSearchParams();
+      Object.entries({...f, lang}).forEach(([k,v])=>{ if(v!==undefined&&v!==''&&v!==false) p.append(k,String(v)); });
+      const {data} = await api.get(`/api/products?${p}`);
+      setProducts(data.data||[]);
+      setPagination(data.pagination||{page:1,pages:1,total:0});
+      setBrands(data.meta?.brands||[]);
+    } catch {}
+    finally { setLoading(false); }
+  }, [lang]);
+
+  useEffect(() => { load(filters); }, [filters, lang]);
+
+  const update = (patch: Partial<Filters>) => {
+    const newFilters = {...filters, ...patch, page:1};
+    setFilters(newFilters);
+    const p = new URLSearchParams();
+    Object.entries(newFilters).forEach(([k,v]) => {
+      if(v !== undefined && v !== '' && v !== false && k !== 'page') p.set(k, String(v));
+    });
+    router.push('/products' + (p.toString() ? '?' + p.toString() : ''), { scroll: false });
+  };
+  const reset = () => {
+    setFilters({page:1} as any);
+    router.push('/products', { scroll: false });
+  };
+
+  return (
+    <div className="page-container py-6">
+
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        <FilterBar filters={filters} brands={brands} categories={cats} onChange={update} onClear={reset}/>
+        <div className="flex-1 min-w-0">
+          {loading ? <Loader/> : (
+            <>
+              {products.length===0 ? (
+                <div className="text-center py-20 text-text3">
+                  <div className="text-5xl mb-4">🔍</div>
+                  <div className="font-semibold">{t.noResults}</div>
+                  <button onClick={reset} className="btn-primary mt-4">გასუფთავება</button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {products.map(p=><ProductCard key={p.id} product={p}/>)}
+                </div>
+              )}
+              <Pagination page={pagination.page} total={pagination.total} limit={12} onPage={pg=>setFilters(f=>({...f,page:pg}))}/>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,5 +1,8 @@
+const { withSentryConfig } = require('@sentry/nextjs');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: { instrumentationHook: true },
   async rewrites() {
     return [
       {
@@ -20,4 +23,12 @@ const nextConfig = {
     ],
   },
 };
-module.exports = nextConfig;
+module.exports = withSentryConfig(nextConfig, {
+  silent: true,
+  org: 'kibilov',
+  project: 'kibilov-frontend',
+}, {
+  widenClientFileUpload: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+});

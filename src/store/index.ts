@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import api, { getToken, setToken, setRefreshToken, removeToken } from '@/lib/api';
 
 // ── Auth Store ────────────────────────────────────────────────────────────────
-interface User { id: string; name: string; email: string; phone?: string; role: 'USER' | 'ADMIN'; }
+interface User { id: string; name: string; email: string; phone?: string; role: 'USER' | 'ADMIN'; b2bStatus?: string; b2bDiscount?: number; b2bTier?: string; avatar?: string; createdAt?: string; }
 interface AuthState {
   user: User | null;
   loading: boolean;
@@ -110,3 +110,18 @@ export const useLang = create<LangState>()(
     { name: 'kibilov-lang' }
   )
 );
+
+interface WishlistState {
+  items: string[];
+  toggle: (id: string) => void;
+  has: (id: string) => boolean;
+  isWished: (id: string) => boolean;
+  fetchWishlist: () => Promise<void>;
+}
+export const useWishlist = create<WishlistState>((set, get) => ({
+  items: [],
+  toggle: (id) => set(s => ({ items: s.items.includes(id) ? s.items.filter(i=>i!==id) : [...s.items, id] })),
+  has: (id) => get().items.includes(id),
+  isWished: (id) => get().items.includes(id),
+  fetchWishlist: async () => {},
+}));

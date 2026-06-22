@@ -1,7 +1,6 @@
-<<<<<<< HEAD
-/node_modules
-=======
-node_modules/ 
-.next/ 
-.env.local 
->>>>>>> ad5106c (initial commit)
+.env
+.env.local
+.env.production
+node_modules/
+.next/
+*.log

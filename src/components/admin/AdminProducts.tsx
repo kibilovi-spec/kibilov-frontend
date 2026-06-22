@@ -12,13 +12,68 @@ export function AdminProducts() {
   const [filterLow, setFilterLow] = useState(sp?.get('filter')==='lowStock');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [totalValue, setTotalValue] = useState(0);
   const [editing, setEditing] = useState<any>(null);
   const [stockVal, setStockVal] = useState('');
+  const [editFull, setEditFull] = useState<any>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  const [editSaving, setEditSaving] = useState(false);
+  const [editImgUploading, setEditImgUploading] = useState(false);
+  const [importHistory, setImportHistory] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [deletingBatch, setDeletingBatch] = useState<number|null>(null);
+
+  const loadImportHistory = async () => {
+    try {
+      const { data } = await api.get('/api/admin/import-batches');
+      setImportHistory(data);
+      setShowHistory(true);
+    } catch(e:any) { alert('შეცდომა: ' + e.message); }
+  };
+
+  const deleteBatch = async (id: number, filename: string) => {
+    if (id === -1) { alert('ეს batch-ის გარეშე დამატებული პროდუქტებია — წაშლა შეუძლებელია'); return; }
+    if (!confirm(`წაიშლება ექსელი: "${filename}" და ყველა მისი პროდუქტი. დარწმუნებული ხარ?`)) return;
+    setDeletingBatch(id);
+    try {
+      await api.delete(`/api/admin/import-batches/${id}`);
+      setImportHistory(prev => prev.filter(b => b.id !== id));
+      fetch();
+      alert('წაიშალა!');
+    } catch(e:any) { alert('შეცდომა: ' + e.message); }
+    finally { setDeletingBatch(null); }
+  };
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
   const [adding, setAdding] = useState(false);
   const [newProduct, setNewProduct] = useState({nameKa:'',nameEn:'',sku:'',brand:'',articleNumber:'',price:'',stock:'',description:''});
   const [saving, setSaving] = useState(false);
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const [newProductImages, setNewProductImages] = useState<string[]>([]);
+
+  const uploadImage = async (file: File): Promise<string|null> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      const r = await api.post('/api/admin/upload-image', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      return r.data.url || null;
+    } catch { return null; }
+  };
+
+  const handleImageFiles = async (files: FileList) => {
+    if (newProductImages.length >= 5) return;
+    setUploadingImg(true);
+    const remaining = 5 - newProductImages.length;
+    const toUpload = Array.from(files).slice(0, remaining);
+    const urls: string[] = [];
+    for (const file of toUpload) {
+      const url = await uploadImage(file);
+      if (url) urls.push(url);
+    }
+    setNewProductImages(prev => [...prev, ...urls]);
+    setUploadingImg(false);
+  };
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -27,8 +82,11 @@ export function AdminProducts() {
       if (search) params.q = search;
       if (filterLow) params.inStock = 'false';
       const r = await api.get('/api/products', { params });
-      setProducts(r.data.data || r.data.products || []);
+      const prods = r.data.data || r.data.products || [];
+      setProducts(prods);
       setTotalPages(r.data.pagination?.pages || r.data.totalPages || 1);
+      setTotalProducts(r.data.pagination?.total || r.data.total || 0);
+      setTotalValue(prods.reduce((s: number, p: any) => s + parseFloat(p.price || 0), 0));
     } catch(e){ console.error(e); } finally { setLoading(false); }
   }, [page, search, filterLow]);
 
@@ -40,6 +98,79 @@ export function AdminProducts() {
       await api.patch(`/api/admin/products/${editing.id}/stock`, { stock: parseInt(stockVal) });
       setEditing(null); fetch();
     } catch { alert('შეცდომა'); }
+  };
+
+  const openEditFull = (p: any) => {
+    setEditFull(p);
+    setEditForm({
+      nameKa: p.nameKa||'', nameEn: p.nameEn||'', nameRu: p.nameRu||'',
+      brand: p.brand||'', articleNumber: p.articleNumber||'',
+      price: p.price||'', stock: p.stock||0,
+      description: p.description||'', isActive: p.isActive!==false,
+      images: p.images||[],
+    });
+  };
+
+  const saveEditFull = async () => {
+    if (!editFull) return;
+    setEditSaving(true);
+    try {
+      await api.put(`/api/products/${editFull.id}`, {
+        nameKa: editForm.nameKa,
+        nameEn: editForm.nameEn,
+        nameRu: editForm.nameRu,
+        brand: editForm.brand,
+        articleNumber: editForm.articleNumber,
+        price: parseFloat(editForm.price)||0,
+        stock: parseInt(editForm.stock)||0,
+        description: editForm.description,
+        isActive: editForm.isActive,
+        images: editForm.images,
+      });
+      setEditFull(null);
+      fetch();
+    } catch(e:any){ alert('შეცდომა: '+e.message); }
+    setEditSaving(false);
+  };
+
+  const handleEditImage = async (files: FileList) => {
+    if ((editForm.images||[]).length >= 5) return;
+    setEditImgUploading(true);
+    const toUpload = Array.from(files).slice(0, 5 - (editForm.images||[]).length);
+    const urls: string[] = [];
+    for (const file of toUpload) {
+      const url = await uploadImage(file);
+      if (url) urls.push(url);
+    }
+    setEditForm((f:any) => ({...f, images: [...(f.images||[]), ...urls]}));
+    setEditImgUploading(false);
+  };
+
+  const deleteProduct = async (id: string, name: string) => {
+    if (!confirm(`წაიშლება: "${name}" — დარწმუნებული ხარ?`)) return;
+    try {
+      await api.delete(`/api/products/${id}`);
+      setEditFull(null);
+      fetch();
+    } catch(e:any){ alert('შეცდომა: '+e.message); }
+  };
+
+  const [finaImporting, setFinaImporting] = useState(false);
+  const [finaResult, setFinaResult] = useState<any>(null);
+  const [finaModal, setFinaModal] = useState(false);
+  const [finaFiles, setFinaFiles] = useState<{tamazuka: File|null, kakha: File|null}>({tamazuka:null, kakha:null});
+
+  const finaImport = async () => {
+    setFinaImporting(true); setFinaResult(null);
+    try {
+      const formData = new FormData();
+      if (finaFiles.tamazuka) formData.append('tamazuka', finaFiles.tamazuka);
+      if (finaFiles.kakha) formData.append('kakha', finaFiles.kakha);
+      const r = await api.post('/api/admin/fina-import-upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setFinaResult(r.data.results);
+      setFinaModal(false);
+    } catch(e:any) { alert('შეცდომა: ' + e.message); }
+    setFinaImporting(false);
   };
 
   const syncFina = async () => {
@@ -59,9 +190,11 @@ export function AdminProducts() {
         ...newProduct,
         price: parseFloat(newProduct.price)||0,
         stock: parseInt(newProduct.stock)||0,
+        images: newProductImages,
       });
       setAdding(false);
       setNewProduct({nameKa:'',nameEn:'',sku:'',brand:'',articleNumber:'',price:'',stock:'',description:''});
+      setNewProductImages([]);
       fetch();
     } catch(e:any){ alert('error: '+e.message); } finally { setSaving(false); }
   };
@@ -71,24 +204,87 @@ export function AdminProducts() {
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h1 className="text-2xl font-bold text-gray-800">პროდუქტები</h1>
+        {totalProducts > 0 && (
+          <div className="flex gap-4 mt-2 flex-wrap">
+            {[
+              ['📦 სულ პროდუქტი', totalProducts.toLocaleString()],
+              ['✅ მარაგშია', products.filter((p:any) => p.stock > 0).length + ' / ' + products.length],
+              ['📄 გვერდი', `${page} / ${totalPages}`],
+            ].map(([label, val]) => (
+              <div key={label as string} className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2">
+                <span className="text-xs text-blue-600 font-medium">{label}: </span>
+                <span className="text-sm font-bold text-blue-800">{val}</span>
+              </div>
+            ))}
+          </div>
+        )}
           <div className="flex gap-2 flex-wrap">
+            <button onClick={()=>setFinaModal(true)} className="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800">
+              📂 FINA Import
+            </button>
             <button onClick={syncFina} disabled={syncing}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-60">
               {syncing ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : null}
               FINA sync
             </button>
-            <label className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm cursor-pointer hover:bg-green-700 transition">
+            <button className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm cursor-pointer hover:bg-green-700 transition"
+              onClick={()=>{
+                const markup = prompt('ფასნამატი % (0 = ზუსტი ფასი, მაგ: 50 = +50%):', '0');
+                if (markup === null) return;
+                const inp = document.getElementById('excel-import-input') as HTMLInputElement;
+                if (inp) { (inp as any)._markup = markup; inp.click(); }
+              }}>
               Excel Import
-              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={async(e)=>{
-                const file = e.target.files?.[0]; if(!file) return;
-                const fd = new FormData(); fd.append('file', file);
-                try {
-                  const r = await api.post('/api/admin/products/import', fd, {headers:{'Content-Type':'multipart/form-data'}});
-                  alert('added: ' + r.data.added + ', updated: ' + r.data.updated);
-                  fetch();
-                } catch(e:any){ alert('error: '+e.message); }
-              }} />
-            </label>
+            </button>
+            <input id="excel-import-input" type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={async(e)=>{
+              const file = e.target.files?.[0]; if(!file) return;
+              const markup = parseFloat((e.target as any)._markup || '0') || 0;
+              const fd = new FormData();
+              fd.append('file', file);
+              fd.append('markup', String(markup));
+              try {
+                const r = await api.post('/api/admin/products/import', fd, {headers:{'Content-Type':'multipart/form-data'}});
+                alert('added: ' + r.data.added + ', updated: ' + r.data.updated + (markup > 0 ? ' (+'+markup+'% ფასნამატი)' : ''));
+                fetch();
+              } catch(e:any){ alert('error: '+e.message); }
+              e.target.value = '';
+            }} />
+            <button onClick={loadImportHistory}
+              className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 transition">
+              📋 Import ისტორია
+            </button>
+            {showHistory && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={()=>setShowHistory(false)}>
+                <div className="bg-white rounded-xl p-6 w-[600px] max-h-[80vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-bold">📋 Excel Import ისტორია</h2>
+                    <button onClick={()=>setShowHistory(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+                  </div>
+                  {importHistory.length === 0 ? (
+                    <p className="text-gray-400 text-sm text-center py-8">Import ისტორია ცარიელია</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {importHistory.map((b:any) => (
+                        <div key={b.id} className="border rounded-lg p-4 flex justify-between items-center">
+                          <div>
+                            <div className="font-medium text-sm">{b.filename}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {new Date(b.importedAt || b.imported_at).toLocaleString('ka-GE')} · {b.productCount || b.active_products || 0} პროდუქტი
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => deleteBatch(b.id, b.filename)}
+                            disabled={deletingBatch === b.id}
+                            className="bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">
+                            {deletingBatch === b.id ? '...' : '🗑️ წაშლა'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <a href="/sample-import.xlsx" download
               className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition">
               ნიმუში Excel
@@ -148,7 +344,10 @@ export function AdminProducts() {
                       : <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">მარაგშია</span>}
                     </td>
                     <td className="px-4 py-3">
-                      <button onClick={()=>{setEditing(p);setStockVal(String(p.stock));}} className="text-blue-600 hover:underline text-xs">მარაგი</button>
+                      <div className="flex gap-2">
+                        <button onClick={()=>{setEditing(p);setStockVal(String(p.stock));}} className="text-blue-600 hover:underline text-xs">მარაგი</button>
+                        <button onClick={()=>openEditFull(p)} className="text-green-600 hover:underline text-xs">✏️ რედ.</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -184,6 +383,135 @@ export function AdminProducts() {
         </div>
       )}
 
+      {editFull && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setEditFull(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg">პროდუქტის რედაქტირება</h3>
+              <button onClick={()=>setEditFull(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">✕</button>
+            </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">სახელი (KA) *</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editForm.nameKa} onChange={e=>setEditForm((f:any)=>({...f,nameKa:e.target.value}))} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">სახელი (EN)</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editForm.nameEn} onChange={e=>setEditForm((f:any)=>({...f,nameEn:e.target.value}))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">ბრენდი</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editForm.brand} onChange={e=>setEditForm((f:any)=>({...f,brand:e.target.value}))} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">OEM კოდი</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editForm.articleNumber} onChange={e=>setEditForm((f:any)=>({...f,articleNumber:e.target.value}))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">ფასი (₾)</label>
+                  <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editForm.price} onChange={e=>setEditForm((f:any)=>({...f,price:e.target.value}))} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">მარაგი</label>
+                  <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editForm.stock} onChange={e=>setEditForm((f:any)=>({...f,stock:e.target.value}))} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">აღწერა</label>
+                <textarea rows={2} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  value={editForm.description} onChange={e=>setEditForm((f:any)=>({...f,description:e.target.value}))} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">სურათები ({(editForm.images||[]).length}/5)</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {(editForm.images||[]).map((img:string, i:number) => (
+                    <div key={i} className="relative">
+                      <img src={img} className="w-16 h-16 object-cover rounded-lg border" alt=""/>
+                      <button onClick={()=>setEditForm((f:any)=>({...f,images:f.images.filter((_:any,j:number)=>j!==i)}))}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">✕</button>
+                    </div>
+                  ))}
+                  {(editForm.images||[]).length < 5 && (
+                    <label className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-blue-500 text-gray-400 text-xs">
+                      {editImgUploading ? '...' : '+ სურ.'}
+                      <input type="file" accept="image/*" multiple className="hidden" onChange={e=>e.target.files&&handleEditImage(e.target.files)}/>
+                    </label>
+                  )}
+                </div>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={editForm.isActive} onChange={e=>setEditForm((f:any)=>({...f,isActive:e.target.checked}))}
+                  className="w-4 h-4 accent-blue-600"/>
+                <span className="text-sm text-gray-700">აქტიური (ჩანს საიტზე)</span>
+              </label>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={()=>setEditFull(null)} className="border rounded-lg py-2 px-4 text-sm hover:bg-gray-50">გაუქმება</button>
+              <button onClick={()=>deleteProduct(editFull.id, editFull.nameKa||editFull.nameEn)}
+                className="border border-red-300 text-red-600 rounded-lg py-2 px-4 text-sm hover:bg-red-50">🗑️ წაშლა</button>
+              <button onClick={saveEditFull} disabled={editSaving} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm hover:bg-blue-700 disabled:opacity-60">
+                {editSaving ? 'ინახება...' : '💾 შენახვა'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {finaModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setFinaModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md p-6" onClick={e=>e.stopPropagation()}>
+            <h3 className="font-bold text-lg mb-4">📂 FINA Import</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">თამაზუკა — Excel ფაილი</label>
+                <input type="file" accept=".xlsx,.xls" onChange={e=>setFinaFiles(f=>({...f,tamazuka:e.target.files?.[0]||null}))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">კახაბერი — Excel ფაილი</label>
+                <input type="file" accept=".xlsx,.xls" onChange={e=>setFinaFiles(f=>({...f,kakha:e.target.files?.[0]||null}))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={()=>setFinaModal(false)} className="flex-1 border rounded-lg py-2 text-sm">გაუქმება</button>
+              <button onClick={finaImport} disabled={finaImporting || (!finaFiles.tamazuka && !finaFiles.kakha)}
+                className="flex-1 bg-green-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-green-700 disabled:opacity-60">
+                {finaImporting ? '⏳ იტვირთება...' : '✅ განახლება'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {finaResult && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setFinaResult(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-md p-6" onClick={e=>e.stopPropagation()}>
+            <h3 className="font-bold text-lg mb-4">📂 FINA Import შედეგი</h3>
+            {finaResult.map((r:any, i:number) => (
+              <div key={i} className="mb-3 p-3 bg-gray-50 rounded-xl">
+                <p className="font-medium text-gray-800">{r.name}</p>
+                {r.error ? <p className="text-red-500 text-sm">{r.error}</p> : (
+                  <p className="text-sm text-gray-600">✅ დამატებული: {r.added} | განახლებული: {r.updated}</p>
+                )}
+              </div>
+            ))}
+            <button onClick={()=>setFinaResult(null)} className="btn-primary w-full mt-4">დახურვა</button>
+          </div>
+        </div>
+      )}
+
       {adding && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setAdding(false)}>
           <div className="bg-white rounded-2xl w-full max-w-md p-6" onClick={e=>e.stopPropagation()}>
@@ -209,6 +537,25 @@ export function AdminProducts() {
               </div>
               <textarea placeholder="აღწერა" value={newProduct.description} onChange={e=>setNewProduct({...newProduct,description:e.target.value})}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none"/>
+            </div>
+            {/* სურათები */}
+            <div className="space-y-2">
+              <div className="flex gap-2 flex-wrap">
+                {newProductImages.map((url,i) => (
+                  <div key={i} className="relative w-16 h-16">
+                    <img src={url} className="w-16 h-16 object-cover rounded-lg border"/>
+                    <button onClick={()=>setNewProductImages(prev=>prev.filter((_,j)=>j!==i))}
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">×</button>
+                  </div>
+                ))}
+                {newProductImages.length < 5 && (
+                  <label className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 text-xs text-gray-400">
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={e=>e.target.files && handleImageFiles(e.target.files)}/>
+                    {uploadingImg ? '...' : <>📷<span>სურათი</span></>}
+                  </label>
+                )}
+              </div>
+              <p className="text-xs text-gray-400">{newProductImages.length}/5 სურათი</p>
             </div>
             <div className="flex gap-2 mt-4">
               <button onClick={()=>setAdding(false)} className="flex-1 border rounded-lg py-2 text-sm hover:bg-gray-50">გაუქმება</button>

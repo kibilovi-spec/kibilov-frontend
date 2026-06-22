@@ -3,19 +3,21 @@ export interface Product {
   nameKa: string; nameEn: string; nameRu: string;
   name?: string; // backend fmtProduct returns pre-formatted name
   description?: string;
-  price: number; priceOld?: number; discount?: number;
+  price: number; priceOld?: number; discount?: number; b2bPrice?: number | null;
   stock: number; inStock?: boolean; images: string[]; badge?: string;
   isFeatured: boolean; isActive: boolean;
   categoryId?: string; category?: Category;
   rating?: number; reviewCount?: number;
   articleNumber?: string; compatibility?: string[];
+  oemCodes?: string[]; alternativeSearchKeys?: string[];
 }
 
 export interface Category {
+  name?: string;
   id: string; slug: string;
   nameKa: string; nameEn: string; nameRu: string;
   icon?: string; parentId?: string;
-  _count?: { products: number };
+  _count?: { products: number }; productCount?: number; children?: Category[];
 }
 
 export interface Order {

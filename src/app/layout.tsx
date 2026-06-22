@@ -1,38 +1,80 @@
+import { Noto_Sans_Georgian, Inter } from 'next/font/google';
+
+const notoSansGeorgian = Noto_Sans_Georgian({
+  subsets: ['georgian'],
+  weight: ['400', '500', '700', '800'],
+  display: 'swap',
+  variable: '--font-georgian',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  display: 'swap',
+  variable: '--font-inter',
+});
+
+
 import type { Metadata } from 'next';
 import './globals.css';
+import WhatsAppButton from '@/components/WhatsAppButton';
+import VisitTracker from '@/components/VisitTracker';
+import StructuredData from '@/components/StructuredData';
+import PushNotifications from '@/components/PushNotifications';
 import dynamic from 'next/dynamic';
-
-const AppProviders = dynamic(() => import('@/components/layout/AppProviders').then(m=>({default:m.AppProviders})), { ssr: false });
-const Header = dynamic(() => import('@/components/layout/Header').then(m=>({default:m.Header})), { ssr: false });
-const Footer = dynamic(() => import('@/components/layout/Footer').then(m=>({default:m.Footer})), { ssr: false });
+import { AppProviders } from '@/components/layout/AppProviders';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
+import MobileNav from '@/components/layout/MobileNav';
+const AiChat = dynamic(() => import('@/components/AiChat'), { ssr: false });
+import BottomNav from '@/components/BottomNav';
 
 export const metadata: Metadata = {
-  title: 'Kibilov AutoParts — ავტონაწილების ონლაინ მაღაზია',
-  description: 'ავტონაწილები ყველა მარკისთვის. BOG, TBC გადახდა. სწრაფი მიტანა რუსთავი, თბილისი, მთელ საქართველოში.',
-  keywords: 'ავტონაწილები, auto parts, автозапчасти, kibilov, რუსთავი, გეორგია',
+  title: 'Kibilov AutoParts — ავტონაწილები საქართველოში | AI ძებნა',
+  description: 'ავტონაწილები ყველა მარკისთვის — BMW, Mercedes, Toyota, VW, Opel და სხვა. AI ძებნა ქართულად. სწრაფი მიტანა თბილისი, რუსთავი, მთელ საქართველოში. VIN სკანირება, ტექპასპორტი.',
+  keywords: 'ავტონაწილები, auto parts, автозапчасти, kibilov, კიბილოვი, რუსთავი, თბილისი, BMW ნაწილები, Mercedes ნაწილები, Toyota ნაწილები, სამუხრუჭე ხუნდი, ამორტიზატორი, ფილტრი, VIN',
+  authors: [{ name: 'Kibilov AutoParts', url: 'https://kibilov.ge' }],
+  creator: 'Kibilov AutoParts',
+  publisher: 'Kibilov AutoParts',
+  metadataBase: new URL('https://kibilov.ge'),
+  alternates: { canonical: 'https://kibilov.ge' },
   openGraph: {
-    title: 'Kibilov AutoParts',
-    description: 'ავტონაწილების ონლაინ მაღაზია',
+    title: 'Kibilov AutoParts — ავტონაწილები საქართველოში',
+    description: 'AI ძებნა ქართულად. BMW, Mercedes, Toyota და 30+ მარკა. VIN სკანირება.',
     siteName: 'Kibilov AutoParts',
     locale: 'ka_GE',
     type: 'website',
+    url: 'https://kibilov.ge',
+    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Kibilov AutoParts' }],
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Kibilov AutoParts — ავტონაწილები საქართველოში',
+    description: 'AI ძებნა ქართულად. BMW, Mercedes, Toyota და 30+ მარკა.',
+  },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
+  verification: { google: '7BJHEitpkS6a7Y3Tgvml_6iNf5AOLFuTQsf7qCIIamY' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ka">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
         <link rel="icon" href="/favicon.ico" />
       </head>
-      <body>
+      <body className={`${notoSansGeorgian.variable} ${inter.variable}`}>
         <AppProviders>
           <Header />
-          <main className="min-h-screen">{children}</main>
+          <main className="min-h-screen pb-16 md:pb-0" style={{overflowX:"hidden"}}>{children}
+        <WhatsAppButton />
+        <VisitTracker />
+        <StructuredData />
+        <PushNotifications /></main>
+          <AiChat />
+          <BottomNav />
           <Footer />
+          <MobileNav />
         </AppProviders>
       </body>
     </html>

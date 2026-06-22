@@ -1,0 +1,484 @@
+'use client';
+// This file contains all page-level components
+// Each is used by the corresponding page.tsx
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { useLang } from '@/store';
+import { useVehicleStore } from '@/store/vehicle';
+import { useT } from '@/lib/i18n';
+import api from '@/lib/api';
+import { ProductCard, FilterBar, type Filters } from '@/components/shop/index';
+import { Loader, Pagination } from '@/components/ui/index';
+import { CategoryIcon } from '@/components/ui/CategoryIcon';
+import { AutodocCategoryTree } from '@/components/AutodocCategoryTree';
+import RecentlyViewed from '@/components/RecentlyViewed';
+import { CompatibilityBanner } from '@/components/vehicle/CompatibilityBanner';
+import type { Product, Category } from '@/types';
+
+// ══════════════════════════════════════════
+// HomePage
+// ══════════════════════════════════════════
+export function HomePage() {
+  const { lang } = useLang();
+  const t = useT(lang);
+  const [categories, setCats] = useState<Category[]>([]);
+  const [featured, setFeatured] = useState<Product[]>([]);
+
+  useEffect(() => {
+    api.get(`/api/categories?lang=${lang}`).then(({data})=>setCats(data.data||[])).catch(()=>{});
+    api.get(`/api/products?featured=true&lang=${lang}&limit=8`).then(({data})=>setFeatured(data.data||[])).catch(()=>{});
+  }, [lang]);
+
+  const BRANDS = [
+    {name:'BOSCH', slug:'bosch'},
+    {name:'MANN', slug:'mann-filter'},
+    {name:'NGK', slug:'ngk'},
+    {name:'SACHS', slug:'sachs'},
+    {name:'FEBI', slug:'febi-bilstein'},
+    {name:'VALEO', slug:'valeo'},
+    {name:'MAHLE', slug:'mahle'},
+    {name:'CASTROL', slug:'castrol'},
+    {name:'DENSO', slug:'denso'},
+    {name:'LIQUI MOLY', slug:'liqui-moly'},
+    {name:'MEYLE', slug:'meyle'},
+    {name:'KYB', slug:'kyb'},
+    {name:'TRW', slug:'trw'},
+    {name:'DAYCO', slug:'dayco'},
+  ];
+
+  const MAKES: Record<string,string[]> = {
+    Toyota:['Camry','Corolla','RAV4','Land Cruiser','Land Cruiser Prado','Prius','Yaris','Hilux','FJ Cruiser','Fortuner','Venza','Highlander','Sequoia','4Runner','Avensis','Auris','Alphard','Vellfire'],
+    Hyundai:['Tucson','Santa Fe','Elantra','Sonata','Accent','Creta','ix35','i30','i20','i10','Getz','Trajet','H-1','Porter','Terracan'],
+    Kia:['Sportage','Sorento','Rio','Ceed','Optima','Stinger','Carnival','Telluride','Seltos','Picanto','Cerato','Mohave','Cadenza'],
+    'Mercedes-Benz':['C-Class','E-Class','S-Class','GLE','GLC','GLA','GLK','ML-Class','Sprinter','Vito','A-Class','B-Class','CLA','CLS','G-Class'],
+    BMW:['3 Series','5 Series','7 Series','X1','X3','X5','X6','X7','1 Series','2 Series','4 Series','6 Series','M3','M5'],
+    Volkswagen:['Golf','Passat','Tiguan','Touareg','Polo','Jetta','Caddy','Transporter','Multivan','Amarok','Sharan'],
+    Nissan:['X-Trail','Qashqai','Patrol','Navara','Juke','Note','Almera','Primera','Murano','Pathfinder'],
+    Chevrolet:['Cruze','Captiva','Tahoe','Suburban','Malibu','Spark','Aveo','Lacetti','Cobalt','Traverse','Equinox','Blazer','Silverado'],
+    Mitsubishi:['Outlander','Pajero','Pajero Sport','L200','Eclipse Cross','ASX','Galant','Lancer'],
+    Honda:['CR-V','Civic','Accord','Pilot','HR-V','Jazz','Fit','Stream','Odyssey'],
+    Mazda:['CX-5','CX-9','CX-3','Mazda3','Mazda6','Mazda2','MPV','BT-50'],
+    Subaru:['Forester','Outback','Impreza','Legacy','XV','WRX'],
+    Lexus:['RX','GX','LX','NX','IS','ES','GS','LS','UX','CT'],
+    Audi:['A3','A4','A5','A6','A7','A8','Q3','Q5','Q7','Q8','TT','S4','S6'],
+    'Land Rover':['Discovery','Discovery Sport','Range Rover','Range Rover Sport','Range Rover Evoque','Freelander','Defender'],
+    Jeep:['Grand Cherokee','Cherokee','Wrangler','Compass','Patriot','Renegade'],
+    Ford:['Focus','Mondeo','Kuga','Explorer','F-150','Ranger','Transit','Escape','Edge','Fusion','Mustang'],
+    Opel:['Astra','Vectra','Zafira','Insignia','Mokka','Antara','Corsa','Meriva','Omega'],
+    Renault:['Duster','Megane','Logan','Sandero','Koleos','Fluence','Laguna','Clio','Captur','Kadjar'],
+    Peugeot:['207','208','307','308','407','408','2008','3008','5008','508','Partner'],
+    Citroen:['C3','C4','C5','C-Crosser','Berlingo','Jumper','Xsara'],
+    Skoda:['Octavia','Superb','Fabia','Rapid','Kodiaq','Karoq','Yeti'],
+    Volvo:['XC90','XC60','XC40','S60','S80','S90','V40','V60','V70','V90'],
+    Porsche:['Cayenne','Macan','Panamera','911','Boxster','Cayman'],
+    Infiniti:['QX56','QX80','QX60','FX35','FX37','G37','M37'],
+    Acura:['MDX','RDX','TL','TSX'],
+    Cadillac:['Escalade','SRX','CTS','ATS'],
+    Lincoln:['Navigator','MKX','MKZ','Town Car'],
+    Chrysler:['300C','Pacifica','Voyager'],
+    Dodge:['Durango','Journey','Charger','Challenger','RAM'],
+    GMC:['Yukon','Tahoe','Sierra','Envoy','Terrain'],
+    UAZ:['Patriot','Hunter','Pickup','452'],
+    Lada:['Niva','Granta','Vesta','Largus','Kalina','Priora','2107','2106'],
+    'Ssang Yong':['Rexton','Actyon','Kyron','Musso','Korando','Tivoli'],
+    Isuzu:['D-Max','Trooper','MU-X','NPR'],
+    Suzuki:['Grand Vitara','Vitara','Swift','SX4','Jimny'],
+    Haval:['H6','H2','H9','F7','Jolion'],
+    Geely:['Atlas','Coolray','Emgrand','MK'],
+    Chery:['Tiggo','Arrizo','QQ','Amulet'],
+  };
+  const [selectorTab,setSelectorTab]=useState<'vehicle'|'oem'>('vehicle');
+  const currentYear = new Date().getFullYear();
+  const YEARS = Array.from({length: 35}, (_,i) => String(currentYear - i));
+
+  // Vehicle Store — PostgreSQL-based, Zustand global state
+  const { vehicle, setMake, setModel, setYear, setVehicle, setEngine } = useVehicleStore();
+  const engine = vehicle.engine || '';
+  const make  = vehicle.make;
+  const model = vehicle.model;
+  const year  = vehicle.year;
+
+  const [pgMakes, setPgMakes] = useState<{id:string,name:string,is_popular:boolean}[]>([]);
+  const [pgModels, setPgModels] = useState<{id:string,name:string,yearFrom?:number,yearTo?:number}[]>([]);
+  const [pgYears, setPgYears] = useState<number[]>([]);
+  const [pgEngines, setPgEngines] = useState<{vehicle_id:string,name:string,engine?:string,fuel?:string,power_hp?:number}[]>([]);
+  const [loadingMakes, setLoadingMakes] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
+
+  // Makes — PostgreSQL
+  useEffect(() => {
+    setLoadingMakes(true);
+    fetch('/api/catalog/makes')
+      .then(r => r.json())
+      .then(d => { if (d.success) setPgMakes(d.data || []); })
+      .catch(() => {})
+      .finally(() => setLoadingMakes(false));
+  }, []);
+
+  // Models — PostgreSQL
+  useEffect(() => {
+    if (!vehicle.makeId) { setPgModels([]); setPgYears([]); return; }
+    setLoadingModels(true);
+    fetch(`/api/catalog/models?makeId=${vehicle.makeId}`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setPgModels(d.data || []); })
+      .catch(() => {})
+      .finally(() => setLoadingModels(false));
+  }, [vehicle.makeId]);
+
+  // Years — PostgreSQL
+  useEffect(() => {
+    if (!vehicle.modelId) { setPgYears([]); return; }
+    fetch(`/api/catalog/years?modelId=${vehicle.modelId}`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setPgYears(d.data || []); })
+      .catch(() => {});
+  }, [vehicle.modelId]);
+
+  // Engines — PostgreSQL (variants)
+  useEffect(() => {
+    if (!vehicle.modelId) { setPgEngines([]); return; }
+    const url = year
+      ? `/api/catalog/engines?modelId=${vehicle.modelId}&year=${year}`
+      : `/api/catalog/engines?modelId=${vehicle.modelId}`;
+    fetch(url)
+      .then(r => r.json())
+      .then(d => { if (d.success) setPgEngines(d.data || []); })
+      .catch(() => {});
+  }, [vehicle.modelId, year]);
+
+  // Resolve vehicleId when make+model+year are set
+  useEffect(() => {
+    if (!make || !model) return;
+    fetch(`/api/catalog/resolve?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}${year?'&year='+year:''}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) setVehicle({
+          makeId:    d.makeId,
+          modelId:   d.modelId,
+          vehicleId: d.vehicleId,
+        });
+      })
+      .catch(() => {});
+  }, [make, model, year]);
+
+  const PROMOS = [
+    {icon:'🚚',title:t.freeDelivery,desc:t.freeDeliveryDesc},
+    {icon:'✅',title:t.originalParts,desc:t.originalDesc},
+    {icon:'🔄',title:t.returnPolicy,desc:t.returnDesc},
+    {icon:'🔧',title:t.expertHelp,desc:t.expertDesc},
+  ];
+
+  return (
+    <div className="page-container py-4 space-y-8">
+
+      {/* Hero — compact */}
+      <div className="relative rounded-2xl overflow-hidden bg-primary-dark shadow-md">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary-dark via-primary-dark/90 to-primary/40 z-10"/>
+        <div className="relative z-20 px-6 py-5 md:px-10 md:py-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+            <div>
+              <div className="inline-flex items-center gap-2 bg-accent text-white text-xs font-bold px-3 py-1 rounded-full mb-2">🇬🇪 kibilov.ge — რუსთავი</div>
+              <h1 className="text-2xl md:text-3xl font-extrabold text-white leading-tight">
+                {lang==='ka'?<>ავტონაწილები <span className="text-cyan-300">ყველა მარკისთვის</span></>:lang==='ru'?<>Автозапчасти <span className="text-cyan-300">для любой марки</span></>:<>Auto Parts <span className="text-cyan-300">for Every Make</span></>}
+              </h1>
+            </div>
+            <div className="flex gap-5 shrink-0">
+              {([['24,434','OEM კოდი'],['7,400+','ნაწილი'],['✓','VIN ძებნა'],['✓','AI ასისტ.']] as [string,string][]).map(([n,l])=>(
+                <div key={l} className="text-center">
+                  <div className="text-base font-extrabold text-cyan-300">{n}</div>
+                  <div className="text-[10px] text-white/60">{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2 mb-3">
+            <input id="hero-ai-input"
+              className="flex-1 bg-white rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none focus:ring-2 focus:ring-yellow-400"
+              placeholder={lang==='ka'?'Golf 6 ხუნდი · W204 ამორტ · OEM კოდი · VIN...':lang==='ru'?'Golf 6 колодки · OEM номер · VIN...':'Golf 6 brake pads · OEM code · VIN...'}
+              onKeyDown={(e) => { if (e.key === 'Enter') { const el = document.getElementById('hero-ai-input') as HTMLInputElement; if (el?.value.trim()) { window.dispatchEvent(new CustomEvent('kibilov-ai-search', { detail: el.value.trim() })); el.value = ''; } } }}
+            />
+            <button onClick={() => { const el = document.getElementById('hero-ai-input') as HTMLInputElement; if (el?.value.trim()) { window.dispatchEvent(new CustomEvent('kibilov-ai-search', { detail: el.value.trim() })); el.value = ''; } }}
+              className="bg-accent hover:bg-accent-light text-gray-900 font-bold px-6 py-3 rounded-xl text-sm transition-colors">
+              🔍 ძებნა
+            </button>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {([
+              ['🤖 AI ჩატი', 'kibilov-ai-open', null],
+              ['🚗 გარაჟი', null, '/garage'],
+              ['📸 VIN სკანი', null, '/vin'],
+              ['🔧 სერვის', null, '/maintenance'],
+              ['🏢 B2B', null, '/b2b-apply'],
+            ] as [string, string|null, string|null][]).map(([label, event, href]) =>
+              href ? (
+                <a key={label} href={href} className="bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">{label}</a>
+              ) : (
+                <button key={label} onClick={() => event && window.dispatchEvent(new CustomEvent(event))} className="bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">{label}</button>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Autodoc-style Vehicle Selector */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Tabs */}
+        <div className="flex border-b border-gray-100">
+          {([['vehicle','🚗 მანქანით ძებნა'],['oem','🔢 OEM კოდით']] as const).map(([tab,label])=>(
+            <button key={tab} onClick={()=>setSelectorTab(tab)}
+              className={`flex-1 py-3 text-sm font-bold transition-colors ${selectorTab===tab?'bg-primary text-white':'text-gray-600 hover:bg-gray-50'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Vehicle selector */}
+        {selectorTab==='vehicle' && (
+          <div className="p-4">
+            <p className="text-xs text-gray-400 mb-3">მარკა → მოდელი → წელი → ძრავი → ნაწილი</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+              {/* Make — Autodoc API */}
+              <div>
+                <label className="text-xs font-bold text-gray-500 mb-1 block">1. მარკა {loadingMakes && '...'}</label>
+                <select value={make} onChange={e=>{
+                    const sel = pgMakes.find(m=>m.name===e.target.value);
+                    if (sel) setMake(sel.name, sel.id);
+                  }}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary outline-none bg-gray-50">
+                  <option value="">{loadingMakes ? 'იტვირთება...' : 'აირჩიე...'}</option>
+                  {pgMakes.length > 0
+                    ? pgMakes.map(m=><option key={m.id} value={m.name}>{m.name}</option>)
+                    : Object.keys(MAKES).sort().map(m=><option key={m} value={m}>{m}</option>)
+                  }
+                </select>
+              </div>
+              {/* Model — Autodoc API */}
+              <div>
+                <label className="text-xs font-bold text-gray-500 mb-1 block">2. მოდელი {loadingModels && '...'}</label>
+                <select value={model} onChange={e=>{ const sel=pgModels.find(m=>m.name===e.target.value); if(sel) setModel(sel.name, sel.id); }} disabled={!make}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary outline-none bg-gray-50 disabled:opacity-50">
+                  <option value="">{loadingModels ? 'იტვირთება...' : 'აირჩიე...'}</option>
+                  {pgModels.length > 0
+                    ? pgModels.map(m=><option key={m.id} value={m.name}>{m.name}{m.yearFrom?` (${m.yearFrom}${m.yearTo?'-'+m.yearTo:''})`:''}</option>)
+                    : make && MAKES[make as keyof typeof MAKES]?.map(m=><option key={m} value={m}>{m}</option>)
+                  }
+                </select>
+              </div>
+              {/* Year */}
+              <div>
+                <label className="text-xs font-bold text-gray-500 mb-1 block">3. წელი</label>
+                <select value={year} onChange={e=>setYear(e.target.value)} disabled={!model}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary outline-none bg-gray-50 disabled:opacity-50">
+                  <option value="">აირჩიე...</option>
+                  {(pgYears.length > 0 ? pgYears : YEARS).map(y=><option key={y} value={String(y)}>{y}</option>)}
+                </select>
+              </div>
+              {/* Engine / Volume */}
+              <div>
+                <label className="text-xs font-bold text-gray-500 mb-1 block">4. ძრავი</label>
+                <select value={engine}
+                  onChange={e => {
+                    const sel = pgEngines.find(v => v.vehicle_id === e.target.value);
+                    if (sel) {
+                      setEngine(sel.name || '');
+                      setVehicle({ vehicleId: sel.vehicle_id, engine: sel.engine || sel.name });
+                    } else {
+                      setEngine('');
+                    }
+                  }}
+                  disabled={!year && pgEngines.length === 0}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary outline-none bg-gray-50 disabled:opacity-50">
+                  <option value="">აირჩიე...</option>
+                  {pgEngines.map(v => (
+                    <option key={v.vehicle_id} value={v.vehicle_id}>
+                      {v.engine || v.name}{v.fuel ? ` · ${v.fuel}` : ''}{v.power_hp ? ` · ${v.power_hp}hp` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button
+              disabled={!make || !model}
+              onClick={()=>{
+                const q = `${make} ${model}${year?' '+year:''}`;
+                window.dispatchEvent(new CustomEvent('kibilov-ai-search',{detail:q}));
+              }}
+              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-40 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+              🔍 {make&&model?`${make} ${model}${year?' '+year:''}${engine?' '+engine:''} — ნაწილების ძებნა`:'ნაწილების ძებნა'}
+            </button>
+          </div>
+        )}
+
+        {/* OEM search */}
+        {selectorTab==='oem' && (
+          <div className="p-4">
+            <p className="text-xs text-gray-400 mb-3">OEM კოდი, ნომერი ან ბრენდის არტიკული</p>
+            <div className="flex gap-2">
+              <input id="oem-search-input"
+                className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary outline-none"
+                placeholder="მაგ: 1K0615601AB · GDB1205 · 0 986 424 794"
+                onKeyDown={e=>{if(e.key==='Enter'){const el=document.getElementById('oem-search-input') as HTMLInputElement;if(el?.value.trim()){window.dispatchEvent(new CustomEvent('kibilov-ai-search',{detail:el.value.trim()}));el.value='';}}}}
+              />
+              <button
+                onClick={()=>{const el=document.getElementById('oem-search-input') as HTMLInputElement;if(el?.value.trim()){window.dispatchEvent(new CustomEvent('kibilov-ai-search',{detail:el.value.trim()}));el.value='';}}}
+                className="bg-primary hover:bg-primary/90 text-white font-bold px-6 py-3 rounded-xl text-sm">
+                🔍 ძებნა
+              </button>
+            </div>
+            <div className="flex gap-2 mt-3 flex-wrap">
+              {['GDB1205','1K0615601AB','0 986 424 794','KYB334368'].map(oem=>(
+                <button key={oem} onClick={()=>window.dispatchEvent(new CustomEvent('kibilov-ai-search',{detail:oem}))}
+                  className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-lg font-mono">
+                  {oem}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Address block */}
+      <div className="bg-white border border-gray-2 rounded-xl p-4 shadow-sm flex items-center gap-4 flex-wrap">
+        <span className="text-3xl shrink-0">📍</span>
+        <div className="flex-1"><div className="font-bold text-dark text-sm">{t.addrTitle}</div><div className="text-xs text-text2 mt-0.5">{t.addrSub}</div></div>
+        <a href="tel:+995577575052" className="flex items-center gap-2 bg-primary-light border border-primary/20 rounded-xl px-4 py-2.5">
+          <span className="text-primary text-lg">📞</span>
+          <div><div className="font-extrabold text-primary text-sm">+995 577 575052</div><div className="text-[10px] text-text3">09:00–19:00</div></div>
+        </a>
+      </div>
+
+      {/* Promo strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {PROMOS.map(p=>(
+          <div key={p.title} className="bg-white border border-gray-2 rounded-xl p-3 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow">
+            <span className="text-2xl shrink-0">{p.icon}</span>
+            <div><div className="text-xs font-bold text-dark">{p.title}</div><div className="text-[10px] text-text3">{p.desc}</div></div>
+          </div>
+        ))}
+      </div>
+
+      {/* Categories */}
+      <AutodocCategoryTree className="w-full" />
+
+      {/* Brands */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="section-title"><span className="w-1 h-6 bg-primary rounded-full"/>{t.popularBrands}</h2>
+        </div>
+        <div className="grid grid-cols-7 gap-3">
+          {BRANDS.map(b=>(
+            <Link key={b.name} prefetch={false} href={`/products?brand=${b.name}`}
+              className="bg-white border border-gray-100 rounded-xl p-3 flex flex-col items-center gap-2 hover:border-primary hover:shadow-md transition-all group">
+              <div className="h-10 flex items-center justify-center w-full">
+                <img src={`/images/brands/${b.slug}.png`} alt={b.name}
+                  className="max-h-9 max-w-full object-contain group-hover:scale-105 transition-transform"
+                  onError={(e)=>{const t=e.target as HTMLImageElement;t.style.display='none';(t.nextSibling as HTMLElement)?.style&&((t.nextSibling as HTMLElement).style.display='block')}}
+                />
+                <span className="hidden text-xs font-bold text-gray-700">{b.name}</span>
+              </div>
+              <span className="text-[10px] font-semibold text-gray-500">{b.name}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Featured products */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="section-title"><span className="w-1 h-6 bg-primary rounded-full"/>{t.popularParts}</h2>
+          <Link href="/products" className="text-xs font-bold text-primary hover:underline">{t.seeAll}</Link>
+        </div>
+        {featured.length===0 ? <Loader/> : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {featured.map(p=><ProductCard key={p.id} product={p}/>)}
+          </div>
+        )}
+      </section>
+    
+      <RecentlyViewed /></div>
+  );
+}
+
+// ══════════════════════════════════════════
+// ProductsPage
+// ══════════════════════════════════════════
+export function ProductsPage({ searchParams }: { searchParams?: Record<string,string> }) {
+  const { lang } = useLang();
+  const t = useT(lang);
+  const router = useRouter();
+  const urlParams = useSearchParams();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [pagination, setPagination] = useState({ page:1, pages:1, total:0 });
+  const [brands, setBrands] = useState<string[]>([]);
+  const [cats, setCats] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const getFiltersFromUrl = () => {
+    const p: Record<string,any> = { page: 1 };
+    urlParams.forEach((v, k) => { p[k] = v === 'true' ? true : v === 'false' ? false : v; });
+    return p;
+  };
+  const [filters, setFilters] = useState<Filters>(Object.keys(searchParams||{}).length ? {...searchParams, page:1} : getFiltersFromUrl() as any);
+
+  useEffect(() => {
+    api.get(`/api/categories?lang=${lang}`).then(({data}) => setCats(data.data || [])).catch(() => {});
+  }, [lang]);
+
+  const load = useCallback(async (f: Filters) => {
+    setLoading(true);
+    try {
+      const p = new URLSearchParams();
+      Object.entries({...f, lang}).forEach(([k,v])=>{ if(v!==undefined&&v!==''&&v!==false) p.append(k,String(v)); });
+      const {data} = await api.get(`/api/products?${p}`);
+      setProducts(data.data||[]);
+      setPagination(data.pagination||{page:1,pages:1,total:0});
+      setBrands(data.meta?.brands||[]);
+    } catch {}
+    finally { setLoading(false); }
+  }, [lang]);
+
+  useEffect(() => { load(filters); }, [filters, lang]);
+
+  const update = (patch: Partial<Filters>) => {
+    const newFilters = {...filters, ...patch, page:1};
+    setFilters(newFilters);
+    const p = new URLSearchParams();
+    Object.entries(newFilters).forEach(([k,v]) => {
+      if(v !== undefined && v !== '' && v !== false && k !== 'page') p.set(k, String(v));
+    });
+    router.push('/products' + (p.toString() ? '?' + p.toString() : ''), { scroll: false });
+  };
+  const reset = () => {
+    setFilters({page:1} as any);
+    router.push('/products', { scroll: false });
+  };
+
+  return (
+    <div className="page-container py-6">
+
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        <FilterBar filters={filters} brands={brands} categories={cats} onChange={update} onClear={reset}/>
+        <div className="flex-1 min-w-0">
+          {loading ? <Loader/> : (
+            <>
+              {products.length===0 ? (
+                <div className="text-center py-20 text-text3">
+                  <div className="text-5xl mb-4">🔍</div>
+                  <div className="font-semibold">{t.noResults}</div>
+                  <button onClick={reset} className="btn-primary mt-4">გასუფთავება</button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {products.map(p=><ProductCard key={p.id} product={p}/>)}
+                </div>
+              )}
+              <Pagination page={pagination.page} total={pagination.total} limit={12} onPage={pg=>setFilters(f=>({...f,page:pg}))}/>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

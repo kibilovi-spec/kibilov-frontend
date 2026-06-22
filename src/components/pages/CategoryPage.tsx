@@ -78,13 +78,13 @@ export function CategoryPage() {
       )}
 
       {/* Subcategories */}
-      {category?.children?.length > 0 && (
+      {(category?.children?.length > 0 || category?.subcategories?.length > 0) && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
-          {category.children.map((sub: any) => (
+          {(category.children || category.subcategories || []).map((sub: any) => (
             <Link key={sub.id} href={`/categories/${sub.slug}`}
-              className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-2 hover:border-blue-500 hover:shadow-md transition">
-              <span className="text-2xl">{sub.icon}</span>
-              <span className="text-sm font-medium text-gray-700">{NAME(sub)}</span>
+              className="bg-white border border-gray-200 rounded-lg p-3 flex items-start gap-2 hover:border-blue-500 hover:shadow-md transition min-h-[56px]">
+              <span className="text-2xl flex-shrink-0">{sub.icon}</span>
+              <span className="text-sm font-medium text-gray-700 min-w-0 break-words leading-tight">{NAME(sub)}</span>
             </Link>
           ))}
         </div>
@@ -104,7 +104,7 @@ export function CategoryPage() {
 
       {/* Products Grid */}
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {Array(8).fill(0).map((_, i) => (
             <div key={i} className="bg-white rounded-xl h-64 animate-pulse border border-gray-100"/>
           ))}
@@ -116,10 +116,10 @@ export function CategoryPage() {
           <Link href="/products" className="mt-4 inline-block text-blue-600 hover:underline">ყველა პროდუქტი →</Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {products.map((p: any) => (
             <div key={p.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-blue-500 hover:shadow-lg transition group flex flex-col">
-              <Link href={`/products/${p.id}`} className="relative block h-36 bg-gray-50 flex items-center justify-center text-5xl">
+              <Link href={`/products/${p.id}`} className="relative block h-44 sm:h-36 bg-gray-50 flex items-center justify-center text-5xl">
                 {p.images?.[0] ? (
                   <img src={p.images[0]} alt={p.nameKa} className="h-full w-full object-contain p-2"/>
                 ) : <span>🔧</span>}

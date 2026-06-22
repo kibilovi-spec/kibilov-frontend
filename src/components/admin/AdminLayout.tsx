@@ -5,11 +5,24 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/store';
 
 const NAV = [
-  { href:'/admin', label:'Dashboard', icon:'📊' },
+  { href:'/admin', label:'მთავარი', icon:'📊' },
   { href:'/admin/orders', label:'შეკვეთები', icon:'📦' },
   { href:'/admin/products', label:'პროდუქტები', icon:'🛍️' },
+    {href:'/admin/oem-gaps', label:'OEM ხარვეზი', icon:'🔗'},
+    {href:'/admin/vehicle-coverage', label:'მანქანები', icon:'🚗'},
+    {href:'/admin/search-failures', label:'ძებნის ხარვეზი', icon:'🔍'},
+    {href:'/admin/search-quality', label:'ძებნის ხარისხი', icon:'📊'},
+    {href:'/admin/inventory', label:'მარაგი', icon:'📦'},
+    {href:'/admin/funnel', label:'გაყიდვის ძაბრი', icon:'📈'},
+    {href:'/admin/forecast', label:'პროგნოზი', icon:'🔮'},
+    {href:'/admin/sync', label:'სინქრონიზაცია', icon:'🔄'},
+    {href:'/admin/system', label:'სისტემა', icon:'⚙️'},
   { href:'/admin/users', label:'მომხმარებლები', icon:'👥' },
   { href:'/admin/delivery', label:'მიტანა', icon:'🚚' },
+  { href:'/admin/b2b', label:'B2B', icon:'🏢' },
+  { href:'/admin/suppliers', label:'მომწოდებლები', icon:'🏪' },
+  { href:'/admin/work-queue', label:'სამუშაო რიგი', icon:'⚙️' },
+  { href:'/admin/audit', label:'ისტორია', icon:'📋' },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {

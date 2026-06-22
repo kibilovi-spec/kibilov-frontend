@@ -1,3 +1,10 @@
-import dynamic from 'next/dynamic';
-const HomePage = dynamic(()=>import('@/components/pages/index').then(m=>({default:m.HomePage})),{ssr:false});
-export default function Page(){return<HomePage/>;}
+import { Suspense } from 'react';
+import { HomePage } from '@/components/pages/index';
+export const dynamic = 'force-dynamic';
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <HomePage />
+    </Suspense>
+  );
+}
