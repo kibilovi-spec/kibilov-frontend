@@ -369,33 +369,7 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
           ))}
         </div>
       </div>
-      <div style={{background:'#f8fafc',padding:'16px 24px',borderBottom:'1px solid #e2e8f0'}}>
-        <h2 style={{fontSize:'13px',fontWeight:700,color:'#64748b',marginBottom:'12px',textTransform:'uppercase',letterSpacing:'0.5px'}}>რა გჭირდება?</h2>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px'}}>
-          {[
-            {icon:'🔧',label:'სამუხრუჭე სისტემა',q:'სამუხრუჭე ხუნდი'},
-            {icon:'🛢',label:'ზეთის გამოცვლა',q:'ზეთის ფილტრი'},
-            {icon:'❄️',label:'გაგრილება',q:'ანტიფრიზი'},
-            {icon:'🌬',label:'ფილტრების გამოცვლა',q:'ჰაერის ფილტრი'},
-            {icon:'⚡',label:'ელექტრობა',q:'სანთელი'},
-            {icon:'🔍',label:'VIN ძებნა',q:'VIN'},
-          ].map(item => (
-            <button key={item.q}
-              onClick={() => {
-                if(item.q === 'VIN') { window.location.href='/vin'; return; }
-                window.dispatchEvent(new CustomEvent('kibilov-ai-search', {detail: item.q}));
-              }}
-              style={{background:'#fff',border:'1.5px solid #e2e8f0',borderRadius:'10px',padding:'10px 8px',
-                display:'flex',flexDirection:'column',alignItems:'center',gap:'4px',cursor:'pointer',
-                fontSize:'11px',fontWeight:600,color:'#1e3a5f',transition:'all 0.15s'}}
-              onMouseEnter={e=>(e.currentTarget.style.borderColor='#2563eb')}
-              onMouseLeave={e=>(e.currentTarget.style.borderColor='#e2e8f0')}>
-              <span style={{fontSize:'20px'}}>{item.icon}</span>
-              <span style={{textAlign:'center',lineHeight:'1.3'}}>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* INTENT_GATEWAY_HIDDEN */}
       <div style={{background:'#fff',padding:'20px 24px',borderBottom:'1px solid #f1f5f9'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
           <h2 style={{fontSize:'15px',fontWeight:800,color:'#1e3a5f',display:'flex',alignItems:'center',gap:'8px'}}><span style={{display:'inline-block',width:'3px',height:'18px',background:'#2563eb',borderRadius:'2px'}}/>კატეგორიები</h2>
