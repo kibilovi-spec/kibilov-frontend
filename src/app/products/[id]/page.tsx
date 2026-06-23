@@ -6,6 +6,7 @@ import FitsVehicles from '@/components/FitsVehicles';
 import { ProductCard } from '@/components/shop/index';
 import ProductActions from '@/components/products/ProductActions';
 import CrossReference from '@/components/products/CrossReference';
+import FitmentBadge from '@/components/products/FitmentBadge';
 
 export const dynamic = 'force-dynamic';
 
@@ -111,6 +112,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
             {p.sku && <p className="text-sm text-gray-500">SKU: {p.sku}</p>}
             {p.oem && <p className="text-sm text-gray-500">OEM: {p.oem}</p>}
 
+            <FitmentBadge productId={p.id} />
             <ProductActions product={p} />
           </div>
         </div>
