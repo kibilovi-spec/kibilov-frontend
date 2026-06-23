@@ -213,6 +213,7 @@ export default function AiChat() {
       }
       if (data.analyticsId) setAnalyticsId(data.analyticsId);
       const products: Product[] = data.products || [];
+      if (data.analyticsId && products.length > 0) trackImpressions(products, data.analyticsId);
       const p = data.parsed;
       const suggestions: string[] = data.suggestions || [];
       let text = '';
@@ -248,9 +249,17 @@ export default function AiChat() {
     ? `${vehicle.brand}${vehicle.model ? ' ' + vehicle.model : ''}${vehicle.year ? ' · ' + vehicle.year : ''}`
     : null;
 
-  const trackClick = async (productId: string) => {
+  const trackClick = async (productId: string, position?: number) => {
     if (!analyticsId) return;
-    try { await axios.post('/api/analytics/click', { analyticsId, productId }); } catch {}
+    try { await axios.post('/api/analytics/click', { analyticsId, productId, position }); } catch {}
+  };
+
+  const trackImpressions = async (products: any[], aid: string) => {
+    if (!aid || !products?.length) return;
+    try {
+      const payload = products.slice(0, 20).map((p, i) => ({ productId: p.id, position: i + 1 }));
+      await axios.post('/api/analytics/impressions', { analyticsId: aid, products: payload });
+    } catch {}
   };
 
   return (
