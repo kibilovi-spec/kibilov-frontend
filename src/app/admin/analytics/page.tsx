@@ -6,7 +6,8 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<any>(null);
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'popular'|'notfound'|'daily'|'leads'|'debug'>('popular');
+  const [tab, setTab] = useState<'popular'|'notfound'|'daily'|'realstats'|'leads'|'debug'>('realstats');
+  const [realStats, setRealStats] = useState<any>(null);
   const [debugQ, setDebugQ] = useState('');
   const [debugResult, setDebugResult] = useState<any>(null);
   const [debugLoading, setDebugLoading] = useState(false);
@@ -20,10 +21,12 @@ export default function AnalyticsPage() {
   useEffect(() => {
     Promise.all([
       api.get('/api/admin/search-analytics').then(r => r.data),
-      api.get('/api/leads').then(r => r.data).catch(() => [])
-    ]).then(([analytics, leadsData]) => {
+      api.get('/api/leads').then(r => r.data).catch(() => []),
+      api.get('/api/admin/search-stats').then(r => r.data).catch(() => null)
+    ]).then(([analytics, leadsData, stats]) => {
       setData(analytics);
       setLeads(Array.isArray(leadsData) ? leadsData : []);
+      if (stats) setRealStats(stats);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -81,6 +84,7 @@ export default function AnalyticsPage() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
         {([
+          ['realstats', '📊 Real Stats'],
           ['popular', '🔥 ხშირი ძებნები'],
           ['notfound', '❌ ვერ ნაპოვნი'],
           ['daily', '📅 დღიური'],
@@ -184,6 +188,45 @@ export default function AnalyticsPage() {
       )}
 
       {/* Leads */}
+
+      {tab === 'realstats' && realStats && (
+        <div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px',marginBottom:'20px'}}>
+            {[
+              ['სულ ძებნა', realStats.summary?.total, '#3b82f6'],
+              ['Zero Results', realStats.summary?.zeroResults + ' (' + realStats.summary?.zeroRate + ')', '#ef4444'],
+              ['CTR', realStats.summary?.ctr, '#10b981'],
+              ['Cart Rate', realStats.summary?.cartRate, '#f59e0b'],
+              ['Purchase Rate', realStats.summary?.purchaseRate, '#8b5cf6'],
+            ].map(([label, value, color]) => (
+              <div key={String(label)} style={{background:'#fff',borderRadius:'12px',padding:'16px',border:'1px solid #e2e8f0'}}>
+                <div style={{fontSize:'12px',color:'#64748b'}}>{label}</div>
+                <div style={{fontSize:'22px',fontWeight:700,color:String(color)}}>{value}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px'}}>
+            <div style={{background:'#fff',borderRadius:'12px',padding:'16px',border:'1px solid #e2e8f0'}}>
+              <h3 style={{marginBottom:'12px',fontSize:'14px',fontWeight:700}}>🔥 ტოპ ძებნები</h3>
+              {(realStats.topQueries||[]).slice(0,10).map((q:any,i:number) => (
+                <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid #f1f5f9',fontSize:'13px'}}>
+                  <span>{q.query}</span>
+                  <span style={{fontWeight:700,color:'#3b82f6'}}>{q.cnt}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{background:'#fff',borderRadius:'12px',padding:'16px',border:'1px solid #e2e8f0'}}>
+              <h3 style={{marginBottom:'12px',fontSize:'14px',fontWeight:700}}>❌ Zero Results</h3>
+              {(realStats.zeroQueries||[]).slice(0,10).map((q:any,i:number) => (
+                <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid #f1f5f9',fontSize:'13px'}}>
+                  <span style={{color:'#ef4444'}}>{q.query}</span>
+                  <span style={{fontWeight:700}}>{q.cnt}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {tab === 'leads' && (
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', overflow: 'hidden' }}>
           {leads.slice(0, 30).map((l: any, i: number) => (
