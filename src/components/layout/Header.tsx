@@ -27,6 +27,7 @@ export function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { vehicle, reset: resetVehicle } = useVehicleStore();
   const searchRef = useRef<HTMLDivElement>(null);
+  const searchRefDesktop = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<NodeJS.Timeout>();
   const cartCount = items.reduce((s, i) => s + i.quantity, 0);
 
@@ -43,7 +44,10 @@ export function Header() {
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowSearch(false);
+      const target = e.target as Node;
+      const insideMobile = searchRef.current && searchRef.current.contains(target);
+      const insideDesktop = searchRefDesktop.current && searchRefDesktop.current.contains(target);
+      if (!insideMobile && !insideDesktop) setShowSearch(false);
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -55,6 +59,33 @@ export function Header() {
     if (q.length < 2) { setSearchResults([]); setShowSearch(false); return; }
     searchTimer.current = setTimeout(async () => {
       try {
+        const cleanedForVin = q.replace(/[\s\-\.]/g,'').toUpperCase();
+        const isVin = /^[A-HJ-NPR-Z0-9]{17}$/.test(cleanedForVin);
+        if (isVin) {
+          setSearchResults([{ id: 'vin_' + cleanedForVin, isVinPrompt: true, vin: cleanedForVin } as any]);
+          setShowSearch(true);
+          return;
+        }
+        const isOem = /^[A-Z0-9]{6,}$/i.test(q.replace(/[\s\-\.]/g,''));
+        if (isOem) {
+          // OEM კოდით ძებნა AUTODOC-დან
+          const r = await api.get(`/api/autodoc/find-product?oem=${encodeURIComponent(q.trim())}`);
+          const arts = r.data.articles || [];
+          if (arts.length > 0) {
+            setSearchResults(arts.slice(0,6).map((a: any) => ({
+              id: 'autodoc_' + a.articleId,
+              nameKa: a.articleProductName,
+              nameEn: a.articleProductName,
+              brand: a.supplierName,
+              sku: a.articleNo,
+              price: null,
+              images: a.s3image ? [a.s3image] : [],
+              source: 'autodoc',
+            })));
+            setShowSearch(true);
+            return;
+          }
+        }
         const r = await api.get(`/api/products?q=${encodeURIComponent(q)}&limit=6`);
         setSearchResults(r.data.products || []);
         setShowSearch(true);
@@ -158,7 +189,53 @@ export function Header() {
             ))}
           </nav>
 
-
+          {/* Desktop Search */}
+          <div ref={searchRefDesktop} className="hidden lg:block" style={{ position: 'relative', flex: 1, maxWidth: '420px', marginLeft: '4px' }}>
+            <form onSubmit={submitSearch}>
+              <input
+                className="header-search-input-desktop"
+                style={{ width: '100%', border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '8px 38px 8px 14px', fontSize: '13px', color: '#1e293b', background: '#f8fafc', boxSizing: 'border-box' as 'border-box' }}
+                placeholder={lang==='en'?'Search parts...':lang==='ru'?'Поиск...':'ძებნა: ნაწილი, მარკა, OEM...'}
+                value={search}
+                onChange={e => handleSearch(e.target.value)}
+              />
+              <button type="submit" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '0' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              </button>
+            </form>
+            {showSearch && searchResults.length > 0 && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 8px 24px rgba(15,23,42,0.12)', zIndex: 50, overflow: 'hidden' }}>
+                {searchResults.map(p => (p as any).isVinPrompt ? (
+                  <Link key={'d_'+p.id} href={`/vin?vin=${(p as any).vin}`} onClick={() => setShowSearch(false)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', textDecoration: 'none', background: '#eff6ff' }}>
+                    <div style={{ fontSize: '20px' }}>🚗</div>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#2563eb' }}>VIN კოდი ამოცნობილია</div>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>დააჭირეთ მანქანის დეტალების სანახავად — {(p as any).vin}</div>
+                    </div>
+                  </Link>
+                ) : (
+                  <Link key={'d_'+p.id} href={`/products/${p.id}`} onClick={() => setShowSearch(false)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: '1px solid #f1f5f9', textDecoration: 'none' }}>
+                    {p.images?.[0]
+                      ? <img src={p.images[0]} style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0 }} alt="" />
+                      : <div style={{ width: '32px', height: '32px', background: '#f1f5f9', borderRadius: '6px', flexShrink: 0 }} />
+                    }
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#2563eb', marginBottom: '1px' }}>{p.brand}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nameKa}</div>
+                      <div style={{ display: 'flex', gap: '4px', marginTop: '2px', flexWrap: 'wrap' }}>
+                        {(p.oemCodes||[]).filter((c:string)=>c.length>=4&&c.length<=15&&!c.startsWith('SKU')&&!c.includes(':')).slice(0,2).map((c:string)=>(
+                          <span key={c} style={{ fontSize: '10px', fontFamily: 'monospace', background: '#eff6ff', color: '#2563eb', padding: '0 4px', borderRadius: '4px', border: '1px solid #bfdbfe' }}>{c}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ fontWeight: 700, color: '#2563eb', fontSize: '14px', flexShrink: 0 }}>{p.price}₾</div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Right Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto', flexShrink: 0 }} className="lg:ml-0">
@@ -245,7 +322,16 @@ export function Header() {
             </form>
             {showSearch && searchResults.length > 0 && (
               <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 8px 24px rgba(15,23,42,0.12)', zIndex: 50, overflow: 'hidden' }}>
-                {searchResults.map(p => (
+                {searchResults.map(p => (p as any).isVinPrompt ? (
+                  <Link key={p.id} href={`/vin?vin=${(p as any).vin}`} onClick={() => setShowSearch(false)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', textDecoration: 'none', background: '#eff6ff' }}>
+                    <div style={{ fontSize: '20px' }}>🚗</div>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#2563eb' }}>VIN კოდი ამოცნობილია</div>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>დააჭირეთ მანქანის დეტალების სანახავად — {(p as any).vin}</div>
+                    </div>
+                  </Link>
+                ) : (
                   <Link key={p.id} href={`/products/${p.id}`} onClick={() => setShowSearch(false)}
                     style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: '1px solid #f1f5f9', textDecoration: 'none' }}>
                     {p.images?.[0]
