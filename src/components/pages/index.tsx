@@ -1,6 +1,7 @@
 'use client';
 import { OemAutocomplete } from '@/components/OemAutocomplete';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { ModelSelector } from '@/components/ModelSelector';
 // This file contains all page-level components
 // Each is used by the corresponding page.tsx
 
@@ -72,7 +73,21 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
 
   useEffect(() => {
     api.get(`/api/categories?lang=${lang}`).then(({data})=>setCats(data.data||[])).catch(()=>{});
-    api.get(`/api/products?featured=true&lang=${lang}&limit=8`).then(({data})=>setFeatured(data.data||[])).catch(()=>{});
+    // DB featured პროდუქტები + Autodoc featured (skip if SSR data exists)
+    if (initialFeatured && initialFeatured.length > 0) return;
+    Promise.all([
+      api.get(`/api/products?featured=true&lang=${lang}&limit=40`).catch(()=>({data:{data:[]}})),
+      api.get('/api/autodoc/featured').catch(()=>({data:{data:[]}})),
+    ]).then(([dbRes, adRes]) => {
+      const dbAll = dbRes.data?.data || [];
+      const adAll = adRes.data?.data || [];
+      const withImg = dbAll.filter((p:any)=>p.images&&p.images.length>0);
+      const withoutImg = dbAll.filter((p:any)=>!p.images||p.images.length===0);
+      const dbProds = [...withImg,...withoutImg].slice(0,8);
+      const dbSkus = new Set(dbProds.map((p:any)=>p.sku?.replace(/\s+/g,'').toUpperCase()));
+      const newAd = adAll.filter((p:any)=>!dbSkus.has(p.sku?.replace(/\s+/g,'').toUpperCase()));
+      setFeatured([...dbProds, ...newAd].slice(0,40));
+    });
   }, [lang]);
 
   useEffect(() => {
@@ -99,6 +114,8 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
   }, [featured]);
 
   const BRANDS = [
+    {name:'Wünscher', slug:'wunscher'},
+    {name:'SCT', slug:'sct'},
     {name:'BOSCH', slug:'bosch'},
     {name:'MANN', slug:'mann-filter'},
     {name:'NGK', slug:'ngk'},
@@ -264,11 +281,6 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
         }
       `}</style>
 
-      <div className='cat-nav-bar' style={{background:'#163050',padding:'0 12px',display:'flex',overflowX:'auto',WebkitOverflowScrolling:'touch',msOverflowStyle:'none',scrollbarWidth:'none'}}>
-        {[['🔧 სამუხრუჭე','brake'],['⚙️ ძრავი','engine'],['🔩 სამოჭერი','suspension'],['💡 ელექტრიკა','electrical'],['❄️ გაგრილება','cooling'],['🛢️ ზეთი','filters'],['🔄 კოლოფი','transmission'],['🚗 კარავანი','body']].map(([label,cat])=>(
-          <Link key={String(cat)} href={`/products?category=${cat}`} style={{color:'#93c5fd',fontSize:'11px',padding:'8px 10px',whiteSpace:'nowrap',borderBottom:'2px solid transparent',textDecoration:'none',display:'block'}}>{label}</Link>
-        ))}
-      </div>
       <h1 className="sr-only">ავტონაწილები საქართველოში — kibilov.ge</h1>
       <div className='hero-grid' style={{background:'linear-gradient(135deg,#0066CC,#003d7a)',borderBottom:'1px solid #002d5a',display:'grid',gridTemplateColumns:'1fr 1fr 1fr'}}>
         {/* 1. ავტომობილის შერჩევა */}
@@ -289,27 +301,20 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
             <span style={{background:model?'#0066CC':'#cbd5e1',color:model?'#fff':'#64748b',width:'14px',height:'14px',borderRadius:'50%',fontSize:'8px',display:'inline-flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>2</span> Model
             {loadingModels&&<span style={{fontSize:'9px',color:'#94a3b8'}}>...</span>}
           </div>
-          <SearchableSelect
+          <ModelSelector
+            models={pgModels.length > 0 ? pgModels : []}
             value={model}
-            onChange={(name, id) => { const sel = pgModels.find((m:any)=>m.name===name); if(sel) setModel((sel as any).nameRaw || sel.name, sel.id); else setModel(name, id||name); }}
-            options={pgModels.length>0 ? pgModels.map((m:any)=>({id:m.id, name:m.name})) : (make&&MAKES[make as keyof typeof MAKES]?.map(m=>({name:m}))||[])}
-            placeholder="— Model —"
-            loading={loadingModels}
-            disabled={!make}
+            disabled={!make || pgModels.length === 0}
+            onChange={(name, obj) => {
+              const sel = pgModels.find((m:any) => m.name === name);
+              if (sel) setModel((sel as any).nameRaw || sel.name, sel.id);
+              else setModel(name, name);
+            }}
           />
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
-            <div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr',gap:'6px'}}>
+            <div style={{gridColumn:'1/-1'}}>
               <div style={{fontSize:'9px',color:'#64748b',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.3px',marginBottom:'3px',display:'flex',alignItems:'center',gap:'4px'}}>
-                <span style={{background:year?'#0066CC':'#cbd5e1',color:year?'#fff':'#64748b',width:'14px',height:'14px',borderRadius:'50%',fontSize:'8px',display:'inline-flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>3</span> Year
-              </div>
-              <select value={year} onChange={e=>setYear(e.target.value)} disabled={!model} style={{width:'100%',fontSize:'11px',padding:'6px 8px',borderRadius:'6px',border:'1.5px solid #e2e8f0',background:'#f8fafc',color:year?'#1e293b':'#94a3b8',outline:'none',cursor:'pointer',opacity:model?1:0.5}}>
-                <option value="">— Year —</option>
-                {(pgYears.length>0?pgYears:YEARS).map(y=><option key={y} value={String(y)}>{y}</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={{fontSize:'9px',color:'#64748b',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.3px',marginBottom:'3px',display:'flex',alignItems:'center',gap:'4px'}}>
-                <span style={{background:engine?'#0066CC':'#cbd5e1',color:engine?'#fff':'#64748b',width:'14px',height:'14px',borderRadius:'50%',fontSize:'8px',display:'inline-flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>4</span> Engine
+                <span style={{background:engine?'#0066CC':'#cbd5e1',color:engine?'#fff':'#64748b',width:'14px',height:'14px',borderRadius:'50%',fontSize:'8px',display:'inline-flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>3</span> Engine
               </div>
               <SearchableSelect
               value={engine}
@@ -386,7 +391,7 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
           {BRANDS.map(b=>(
             <Link key={b.name} href={`/products?brand=${b.name}`} prefetch={false} style={{background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'10px',padding:'12px',display:'flex',flexDirection:'column',alignItems:'center',gap:'6px',textDecoration:'none'}}>
               <div style={{height:'36px',display:'flex',alignItems:'center',justifyContent:'center',width:'100%'}}>
-                <img src={`/images/brands/${b.slug}.png`} alt={b.name} style={{maxHeight:'32px',maxWidth:'100%',objectFit:'contain'}} onError={(e)=>{const t=e.target as HTMLImageElement;t.style.display='none';(t.nextSibling as HTMLElement)?.style&&((t.nextSibling as HTMLElement).style.display='block');}}/>
+                <img src={`/images/brands/${b.slug}.webp`} alt={b.name} loading="lazy" style={{maxHeight:'32px',maxWidth:'100%',objectFit:'contain'}} onError={(e)=>{const t=e.target as HTMLImageElement;t.src=`/images/brands/${b.slug}.png`;t.onerror=()=>{t.style.display='none';(t.nextSibling as HTMLElement)?.style&&((t.nextSibling as HTMLElement).style.display='block');};}}/>
                 <span style={{display:'none',fontSize:'10px',fontWeight:700,color:'#374151'}}>{b.name}</span>
               </div>
               <span style={{fontSize:'9px',fontWeight:600,color:'#94a3b8'}}>{b.name}</span>
@@ -418,7 +423,7 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
             <p style={{color:'#a7f3d0',fontSize:'12px'}}>სერვის ცენტრებისთვის, მაღაზიებისთვის — სპეციალური ფასები</p>
           </div>
           <div style={{display:'flex',gap:'10px'}}>
-            <Link href="/b2b" style={{background:'#fff',color:'#059669',borderRadius:'7px',padding:'10px 22px',fontSize:'12px',fontWeight:700,textDecoration:'none'}}>B2B შესვლა</Link>
+            <Link href="/auth" style={{background:'#fff',color:'#059669',borderRadius:'7px',padding:'10px 22px',fontSize:'12px',fontWeight:700,textDecoration:'none'}}>B2B შესვლა</Link>
             <Link href="/b2b-apply" style={{background:'transparent',color:'#fff',border:'1px solid rgba(255,255,255,0.35)',borderRadius:'7px',padding:'10px 22px',fontSize:'12px',textDecoration:'none'}}>რეგისტრაცია</Link>
           </div>
         </div>
@@ -440,8 +445,7 @@ export function ProductsPage({ searchParams, initialProducts, initialPagination,
   const t = useT(lang);
   const router = useRouter();
   const urlParams = useSearchParams();
-  const hasInitial = !!(initialProducts && initialProducts.length >= 0 && initialPagination);
-  const skipFirstLoad = useRef(hasInitial);
+  const hasInitial = !!(initialProducts && initialProducts.length > 0 && initialPagination);
   const [products, setProducts] = useState<Product[]>(initialProducts || []);
   const [pagination, setPagination] = useState(initialPagination || { page:1, pages:1, total:0 });
   const [brands, setBrands] = useState<string[]>(initialBrands || []);
@@ -464,7 +468,42 @@ export function ProductsPage({ searchParams, initialProducts, initialPagination,
       const p = new URLSearchParams();
       Object.entries({...f, lang}).forEach(([k,v])=>{ if(v!==undefined&&v!==''&&v!==false) p.append(k,String(v)); });
       const {data} = await api.get(`/api/products?${p}`);
-      setProducts(data.data||[]);
+      let dbProducts = data.data || [];
+
+      // Autodoc პროდუქტები vehicle + category-ს შემთხვევაში
+      const categoryId = (f as any).category || urlParams.get('category');
+      const vehicleId = (f as any).vehicleId || urlParams.get('vehicleId');
+      if (categoryId) {
+        try {
+          const qs = vehicleId ? `vehicleId=${vehicleId}&categoryId=${categoryId}` : `categoryId=${categoryId}`;
+          const {data: adData} = await api.get(`/api/autodoc/articles?${qs}`);
+          const adProducts = adData.data || [];
+          const dbSkus = new Set(dbProducts.map((p: any) => p.sku?.replace(/\s+/g,'').toUpperCase()));
+          const newAd = adProducts.filter((p: any) => !dbSkus.has(p.sku?.replace(/\s+/g,'').toUpperCase()));
+          dbProducts = [...dbProducts, ...newAd];
+        } catch {}
+      }
+
+      // Brand filter — Autodoc by-brand
+      const brandFilter = (f as any).brand || urlParams.get('brand');
+      // debug removed
+      if (dbProducts.length === 0 && brandFilter && !categoryId) {
+        try {
+          const {data: adBrand} = await api.get(`/api/autodoc/by-brand?brand=${brandFilter}`);
+          dbProducts = adBrand.data || [];
+        } catch {}
+      }
+      // თუ DB ცარიელია და საერთოდ არცერთი ფილტრი არაა გამოყენებული — Autodoc featured ვაჩვენოთ
+      const hasAnyFilter = Object.entries(f).some(
+        ([k, v]) => !['page', 'lang'].includes(k) && v !== undefined && v !== '' && v !== false
+      );
+      if (dbProducts.length === 0 && !hasAnyFilter) {
+        try {
+          const {data: adFeat} = await api.get('/api/autodoc/featured');
+          dbProducts = adFeat.data || [];
+        } catch {}
+      }
+      setProducts(dbProducts);
       setPagination(data.pagination||{page:1,pages:1,total:0});
       setBrands(data.meta?.brands||[]);
     } catch {}
@@ -472,9 +511,26 @@ export function ProductsPage({ searchParams, initialProducts, initialPagination,
   }, [lang]);
 
   useEffect(() => {
-    if (skipFirstLoad.current) { skipFirstLoad.current = false; return; }
+
     load(filters);
   }, [filters, lang]);
+
+  // Autodoc პროდუქტები URL-ის vehicleId-ით
+  useEffect(() => {
+    const vehicleId = urlParams.get('vehicleId');
+    const categoryId = urlParams.get('category');
+    if (!vehicleId || !categoryId || !/^\d+$/.test(categoryId)) return;
+    api.get(`/api/autodoc/articles?vehicleId=${vehicleId}&categoryId=${categoryId}`)
+      .then(({data}) => {
+        const adProducts = data.data || [];
+        setProducts(prev => {
+          const dbSkus = new Set(prev.map((p: any) => p.sku?.replace(/\s+/g,'').toUpperCase()));
+          const newAd = adProducts.filter((p: any) => !dbSkus.has(p.sku?.replace(/\s+/g,'').toUpperCase()));
+          return [...prev, ...newAd];
+        });
+      })
+      .catch(() => {});
+  }, [urlParams]);
 
   const update = (patch: Partial<Filters>) => {
     const newFilters = {...filters, ...patch, page:1};
@@ -494,8 +550,8 @@ export function ProductsPage({ searchParams, initialProducts, initialPagination,
     <div className="page-container py-6">
 
       <div className="flex flex-col lg:flex-row gap-6 items-start">
-        <FilterBar filters={filters} brands={brands} categories={cats} onChange={update} onClear={reset}/>
-        <div className="flex-1 min-w-0">
+        <div className="order-2 lg:order-1"><FilterBar filters={filters} brands={brands} categories={cats} onChange={update} onClear={reset}/></div>
+        <div className="flex-1 min-w-0 order-1 lg:order-2">
           {loading ? <Loader/> : (
             <>
               {products.length===0 ? (

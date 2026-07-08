@@ -31,7 +31,24 @@ async function getInitialProducts(searchParams?: Record<string, string>) {
 }
 
 export default async function Page({ searchParams }: { searchParams?: Record<string,string> }) {
-  const initial = await getInitialProducts(searchParams);
+  let initial = await getInitialProducts(searchParams);
+  // DB ცარიელია — Autodoc featured ვაჩვენოთ (მხოლოდ თუ საერთოდ არცერთი ფილტრი არაა გამოყენებული)
+  const hasAnyFilter = searchParams && Object.entries(searchParams).some(
+    ([k, v]) => !['page', 'lang'].includes(k) && v !== undefined && v !== ''
+  );
+  if (!initial?.products?.length && !hasAnyFilter) {
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/autodoc/featured`, { cache: 'no-store' });
+      const data = await r.json();
+      if (data.data?.length) {
+        initial = {
+          products: data.data,
+          pagination: { page: 1, pages: 1, total: data.data.length },
+          brands: [],
+        };
+      }
+    } catch {}
+  }
   return (
     <>
       <h1 className="sr-only">ავტონაწილები — კატალოგი | kibilov.ge</h1>
