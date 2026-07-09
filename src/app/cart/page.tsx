@@ -4,6 +4,7 @@ import { useLang } from '@/store';
 import { useT } from '@/lib/i18n';
 import Link from 'next/link';
 import { openAuth } from '@/components/layout/Header';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function CartPage() {
   const { items, removeItem, updateItem, fetchCart } = useCart();
@@ -11,6 +12,7 @@ export default function CartPage() {
   const { user } = useAuth();
   const { lang } = useLang();
   const t = useT(lang);
+  usePageTitle('კალათა | kibilov.ge');
 
   if (items.length === 0) return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
@@ -58,7 +60,7 @@ export default function CartPage() {
             <span className="text-2xl font-bold text-blue-600">{total.toFixed(2)}₾</span>
           </div>
           <div className="space-y-3">
-            <a href={`https://wa.me/995577575052?text=${encodeURIComponent(`გამარჯობა! მინდა შეძენა: ${items.map((i:any)=>`${i.name} x${i.qty}`).join(', ')} | სულ: ${total.toFixed(2)}₾`)}`}
+            <a href={`https://wa.me/995577575052?text=${encodeURIComponent(`გამარჯობა! მინდა შეძენა: ${items.map((i:any)=>`${i.product?.nameKa || i.name || ''} x${i.quantity}`).join(', ')} | სულ: ${total.toFixed(2)}₾`)}`}
               target="_blank" rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full bg-green-500 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-600">
               📱 WhatsApp-ით შეკვეთა
