@@ -12,7 +12,7 @@ const VOLUMES = ['—','0.8L','1.0L','1.2L','1.3L','1.4L','1.5L','1.6L','1.8L','
 const FUELS = [{key:'ბენზინი',icon:'⛽'},{key:'დიზელი',icon:'🛢️'},{key:'ჰიბრიდი',icon:'🔋'},{key:'ელექტრო',icon:'⚡'},{key:'გაზი (LPG)',icon:'🔵'},{key:'პლაგინი',icon:'🔌'}];
 
 export default function MyCarPage() {
-  const { user } = useAuth();
+  const { user, initialized } = useAuth();
   const router = useRouter();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,10 +25,11 @@ export default function MyCarPage() {
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
+    if (!initialized) return;
     if (!user) { router.push('/'); return; }
     fetchVehicles();
     fetchMakes();
-  }, [user]);
+  }, [user, initialized]);
 
   const fetchMakes = async () => {
     try {

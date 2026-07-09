@@ -6,7 +6,7 @@ import api from '@/lib/api';
 import Link from 'next/link';
 
 export default function ProfilePage() {
-  const { user, fetchMe } = useAuth();
+  const { user, fetchMe, initialized } = useAuth();
   const { lang } = useLang();
   const router = useRouter();
   const [form, setForm] = useState({ name: '', phone: '' });
@@ -31,9 +31,10 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
+    if (!initialized) return;
     if (!user) { router.push('/'); return; }
     setForm({ name: user.name || '', phone: user.phone || '' });
-  }, [user]);
+  }, [user, initialized]);
 
   const saveInfo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,6 +154,10 @@ export default function ProfilePage() {
         <Link href="/my-car" className="card p-4 flex items-center gap-3 hover:border-primary transition-colors">
           <span className="text-2xl">🚗</span>
           <span className="font-semibold text-sm text-dark">{T.myCar}</span>
+        </Link>
+        <Link href="/supplier" className="card p-4 flex items-center gap-3 hover:border-primary transition-colors col-span-2">
+          <span className="text-2xl">🏪</span>
+          <span className="font-semibold text-sm text-dark">მომწოდებლის პანელი</span>
         </Link>
       </div>
 

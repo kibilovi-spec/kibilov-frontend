@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function WishlistPage() {
-  const { user } = useAuth();
+  const { user, initialized } = useAuth();
+  usePageTitle('სასურველები | kibilov.ge');
   const { lang } = useLang();
   const { toggle, fetchWishlist } = useWishlist();
   const router = useRouter();
@@ -15,9 +17,10 @@ export default function WishlistPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!initialized) return;
     if (!user) { router.push('/'); return; }
     api.get('/api/wishlist').then(r => setItems(r.data.data || [])).finally(() => setLoading(false));
-  }, [user]);
+  }, [user, initialized]);
 
   const remove = async (productId: string) => {
     await toggle(productId);

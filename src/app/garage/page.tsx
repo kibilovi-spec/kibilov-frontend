@@ -3,16 +3,21 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { ModelSelector } from '@/components/ModelSelector';
+import { SearchableSelect } from '@/components/SearchableSelect';
 import { useAuth } from '@/store';
 import { useVehicleStore } from '@/store/vehicle';
 import toast from 'react-hot-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function GaragePage() {
-  const { user } = useAuth();
+  usePageTitle('ჩემი გარაჟი | kibilov.ge');
+  const { user, initialized } = useAuth();
   const router = useRouter();
-  const { setVehicleId } = useVehicleStore();
+  const { setVehicleId, setVehicle, vehicle } = useVehicleStore();
 
   const [vehicles, setVehicles] = useState<any[]>([]);
+  const [vehicleCats, setVehicleCats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -37,15 +42,33 @@ export default function GaragePage() {
   const [loadingEngines, setLoadingEngines] = useState(false);
 
   useEffect(() => {
+    if (!initialized) return;
     if (!user) { router.push('/auth'); return; }
     loadVehicles();
     loadMakes();
-  }, [user]);
+  }, [user, initialized]);
 
   async function loadVehicles() {
     try {
       const r = await api.get('/api/garage');
-      setVehicles(r.data.data || []);
+      const list = r.data.data || [];
+      setVehicles(list);
+      // პირველი მანქანა ავტომატურად active
+      const stored = localStorage.getItem('kibilov-vehicle');
+      const storedVehicle = stored ? JSON.parse(stored) : null;
+      const hasVehicle = storedVehicle?.state?.vehicle?.vehicleId;
+      const mainCar = list.find((c: any) => c.isMain) || list[0];
+      // vehicle categories ჩავტვირთოთ main მანქანისთვის
+      const mainForCats = list.find((c: any) => c.isMain) || list[0];
+      if (mainForCats?.vehicleId) {
+        api.get(`/api/garage/vehicle-categories/${mainForCats.vehicleId}`)
+          .then(r => setVehicleCats(r.data.data || []))
+          .catch(() => {});
+      }
+      if (mainCar && !hasVehicle && mainCar.vehicleId) {
+        const car = mainCar;
+        setVehicle({ vehicleId: car.vehicleId, make: car.brand||car.make||'', model: car.model||'', year: String(car.year||''), engine: car.engine||'', makeId: null, modelId: null, slug: '' });
+      }
     } catch {}
     setLoading(false);
   }
@@ -68,7 +91,7 @@ export default function GaragePage() {
     setLoadingModels(true);
     try {
       const r = await api.get(`/api/vehicles/models?make=${encodeURIComponent(selMakeName||id)}`);
-      setModels((r.data.data||[]).map((name:string)=>({id:name,name})));
+      setModels((r.data.data||[]).map((m:any)=> typeof m === 'string' ? {id:m,name:m,nameRaw:m} : {id:m.id||m.name,name:m.name,nameRaw:m.nameRaw||m.name,yearFrom:m.yearFrom,yearTo:m.yearTo}));
     } catch {}
     setLoadingModels(false);
   }
@@ -109,8 +132,8 @@ export default function GaragePage() {
   }
 
   async function handleAdd() {
-    if (!selMakeName || !selModelName || !selYear) {
-      toast.error('მარქა, მოდელი და წელი სავალდებულოა');
+    if (!selMakeName || !selModelName || !selVehicleId) {
+      toast.error('მარქა, მოდელი და ძრავი სავალდებულოა');
       return;
     }
     setSaving(true);
@@ -118,11 +141,14 @@ export default function GaragePage() {
       await api.post('/api/garage', {
         brand: selMakeName,
         model: selModelName,
-        year: parseInt(selYear),
+        year: selYear ? parseInt(selYear) : undefined,
         engine: selEngineName,
         vehicleId: selVehicleId || null,
       });
       toast.success('მანქანა დაემატა!');
+      if (selVehicleId) {
+        setVehicle({ vehicleId: selVehicleId, make: selMakeName, model: selModelName, year: selYear, engine: selEngineName, makeId: selMakeId, modelId: selModelId, slug: '' });
+      }
       setAdding(false);
       setSelMakeId(''); setSelMakeName('');
       setSelModelId(''); setSelModelName('');
@@ -181,35 +207,48 @@ export default function GaragePage() {
           <h2 className="text-lg font-bold text-gray-800 mb-4">ახალი მანქანა</h2>
           <div className="space-y-3">
             {/* Make */}
-            <select value={selMakeId} onChange={onMakeChange} className={sel}>
-              <option value="">მარქა (VW, BMW...) *</option>
-              {makes.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
+            <SearchableSelect
+              value={selMakeName}
+              onChange={(name, id) => {
+                const m = makes.find((m:any) => m.name === name);
+                if (m) onMakeChange({ target: { value: m.id } } as any);
+              }}
+              options={makes.map((m:any) => ({ id: m.id, name: m.name }))}
+              placeholder="მარქა (VW, BMW...) *"
+            />
 
             {/* Model */}
-            <select value={selModelId} onChange={onModelChange} className={sel} disabled={!selMakeId || loadingModels}>
-              <option value="">{loadingModels ? 'იტვირთება...' : 'მოდელი *'}</option>
-              {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-
-            {/* Year */}
-            <select value={selYear} onChange={onYearChange} className={sel} disabled={!selModelId || loadingYears}>
-              <option value="">{loadingYears ? 'იტვირთება...' : 'წელი *'}</option>
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+            <ModelSelector
+              models={models}
+              value={selModelName}
+              disabled={!selMakeId || loadingModels}
+              onChange={async (name, obj) => {
+                setSelModelId(obj.id);
+                setSelModelName((obj as any).nameRaw || name);
+                setSelYear(''); setEngines([]);
+                try {
+                  const yFrom = (obj as any).yearFrom || 2000;
+                  const yTo = (obj as any).yearTo || new Date().getFullYear();
+                  const mid = Math.floor((yFrom + yTo) / 2);
+                  const currentMake = makes.find((m:any) => m.id === selMakeId)?.name || selMakeName;
+                  const r = await api.get(`/api/vehicles/engines?make=${encodeURIComponent(currentMake)}&model=${encodeURIComponent(name)}&year=${mid}`);
+                  setEngines((r.data.data||[]).map((e:any) => typeof e==='string'?{vehicle_id:e,name:e,engine:e}:{vehicle_id:String(e.vehicle_id),name:e.name||e.engine,engine:e.engine,fuel:e.fuelType,power_hp:e.powerKw}));
+                } catch {}
+              }}
+            />
 
             {/* Engine */}
-            <select value={selVehicleId} onChange={onEngineChange} className={sel} disabled={!selYear || loadingEngines}>
-              <option value="">{loadingEngines ? 'იტვირთება...' : 'ძრავი (არასავალდებულო)'}</option>
+            <select value={selVehicleId} onChange={onEngineChange} className={sel} disabled={engines.length === 0}>
+              <option value="">— ძრავი * —</option>
               {engines.map(e => (
                 <option key={e.vehicle_id} value={e.vehicle_id}>
-                  {e.engine}{e.fuel ? ` · ${e.fuel}` : ''}{e.power_hp ? ` · ${e.power_hp}hp` : ''}
+                  {e.name}{e.fuel ? ` · ${e.fuel}` : ''}{e.power_hp ? ` · ${e.power_hp}kW` : ''}
                 </option>
               ))}
             </select>
 
             <div className="flex gap-2 pt-2">
-              <button onClick={handleAdd} disabled={saving || !selMakeName || !selModelName || !selYear}
+              <button onClick={handleAdd} disabled={saving || !selMakeName || !selModelName || !selVehicleId}
                 className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition">
                 {saving ? 'ინახება...' : '✅ შენახვა'}
               </button>
@@ -238,11 +277,10 @@ export default function GaragePage() {
             <div key={car.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
               <div className="w-16 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
                 {(() => {
-                  const m = (car.make||'').toLowerCase().replace(/\s+/g,'-');
-                  const mod = (car.model||'').toLowerCase().replace(/\s+/g,'-');
-                  const url = `https://media.autodoc.eu/images/cars/${m}/${mod}/${m}_${mod}.jpg`;
-                  return <img src={url} alt={car.make+' '+car.model} className="w-full h-full object-cover"
-                    onError={(e)=>{(e.target as HTMLImageElement).style.display='none'}} />;
+                  return car.modelImageUrl 
+                    ? <img src={car.modelImageUrl} alt={car.make+' '+car.model} className="w-full h-full object-contain p-1"
+                        onError={(e)=>{(e.target as HTMLImageElement).style.display='none'}} />
+                    : <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">🚗</div>;
                 })()}
               </div>
               <div className="flex-1">
@@ -255,8 +293,8 @@ export default function GaragePage() {
                   className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">
                   არჩევა
                 </button>
-                {car.vehicle_id && (
-                  <a href={`/vin/${car.vehicle_id}/100001`}
+                {car.vehicleId && (
+                  <a href={`/vin/${car.vehicleId}/100001`}
                     className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition text-center">
                     🔧 ნაწილები
                   </a>
@@ -276,6 +314,19 @@ export default function GaragePage() {
           ))}
         </div>
       )}
+    {vehicleCats.length > 0 && (
+      <div className="mt-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4">🔧 ჩემი მანქანისთვის კატეგორიები</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {vehicleCats.map((cat: any) => (
+            <a key={cat.id} href={`/products?category=${cat.id}&vehicleId=${vehicles.find((v:any)=>v.isMain)?.vehicleId||''}`}
+              className="bg-white border border-gray-200 rounded-xl p-3 text-center hover:border-blue-400 hover:shadow-sm transition-all">
+              <p className="text-sm font-medium text-gray-800">{cat.name}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
     </div>
     </>
   );

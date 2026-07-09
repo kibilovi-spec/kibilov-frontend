@@ -5,6 +5,7 @@ import { useT } from '@/lib/i18n';
 import api from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 const STATUS_COLORS: Record<string,string> = {
   PENDING:'bg-yellow-100 text-yellow-800', CONFIRMED:'bg-blue-100 text-blue-800',
@@ -25,6 +26,7 @@ const STATUS_RU: Record<string,string> = {
 };
 
 export function OrdersPage() {
+  usePageTitle('ჩემი შეკვეთები | kibilov.ge');
   const { user } = useAuth();
   const { lang } = useLang();
   const t = useT(lang);

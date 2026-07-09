@@ -1,10 +1,13 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { AutodocCategoryTree } from '@/components/AutodocCategoryTree';
 import { useAuth } from '@/store';
 import api2 from '@/lib/api';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import Link from 'next/link';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 interface Vehicle {
   make: string|null; model: string|null; year: string|null;
@@ -18,15 +21,18 @@ interface Part {
   product?: { id: string; nameKa: string; price: number; stock: number; images?: string[] };
 }
 
-export default function VINPage() {
+function VINPageInner() {
+  const searchParams = useSearchParams();
   const [vin, setVin] = useState('');
   const [vehicle, setVehicle] = useState<Vehicle|null>(null);
   const [vehicleId, setVehicleId] = useState<string|null>(null);
   const [multiVehicles, setMultiVehicles] = useState<any[]>([]);
   const { user } = useAuth();
   const [savingGarage, setSavingGarage] = useState(false);
+  usePageTitle('VIN ძებნა | kibilov.ge');
   const [savedToGarage, setSavedToGarage] = useState(false);
   const [confMsg, setConfMsg] = useState('');
+  const [carImage, setCarImage] = useState<string|null>(null);
   const [confColor, setConfColor] = useState('green');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -96,18 +102,21 @@ export default function VINPage() {
           setError('');
           setMultiVehicles(d.vehicles);
         }
+
       else if (d?.notFound || !d?.vehicle) { setError(d?.error || 'VIN ვერ მოიძებნა'); }
       else {
         const info: Vehicle = {
           make: d.vehicle.make||null, model: d.vehicle.model||null,
           year: d.vehicle.year ? String(d.vehicle.year) : null,
-          engine: d.vehicle.engine||null, fuel: d.vehicle.fuel||null,
+          engine: d.vehicle.displacement||d.vehicle.engine||null,
+          fuel: d.vehicle.fuelType||d.vehicle.fuel||null,
           chassis: d.vehicle.chassis||null,
         };
         setVehicle(info);
         setVehicleId(d.vehicleId||null);
         setConfMsg(d.confidenceLabel || '✅ ამოცნობილია');
         setConfColor(d.confidenceColor || 'green');
+        setCarImage(d.carImage || null);
         saveHist(v, info, d.vehicleId||'');
         if (d.vehicleId) {
           loadCats(d.vehicleId);
@@ -117,12 +126,22 @@ export default function VINPage() {
     } catch(e: any) { setError(e.response?.data?.error || 'სერვერთან კავშირი ვერ მოხდა'); }
     setLoading(false);
   };
+  useEffect(() => {
+    const q = searchParams.get('vin');
+    if (q && q.trim().length === 17) {
+      setVin(q.trim().toUpperCase());
+      setTab('manual');
+      search(q.trim().toUpperCase());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadCats = async (vId: string) => {
     setCatsLoading(true);
     try {
-      const r = await api.get(`/api/autodoc/categories?vehicleId=${vId}`);
-      setCategories(r.data.categories || []);
+      const r = await api.get(`/api/categories?lang=en&limit=200`);
+      const cats = (r.data.data || []).map((c: any) => ({ id: c.autodocId || c.id, name: c.nameEn || c.name, parent: c.parentId ? String(c.parentId) : null, parentId: c.parentId, imageUrl: c.imageUrl }));
+      setCategories(cats);
     } catch {}
     setCatsLoading(false);
   };
@@ -271,6 +290,7 @@ export default function VINPage() {
       )}
 
       {/* Multi Vehicle Selector */}
+
       {multiVehicles.length > 0 && !vehicle && (
         <div className="bg-white border border-gray-200 rounded-2xl p-5">
           <p className="text-sm font-bold text-blue-700 mb-3">🚗 აირჩიეთ თქვენი მანქანის ვარიანტი:</p>
@@ -278,10 +298,11 @@ export default function VINPage() {
             {multiVehicles.map((v: any) => (
               <button key={v.vehicleId}
                 onClick={() => {
+                  const vid = String(v.vehicleId);
                   setMultiVehicles([]);
-                  setVehicleId(String(v.vehicleId));
-                  const parts = v.carName.split(' ');
-                  const carParts = v.carName.split(' '); const make = carParts[0]; const model = carParts.slice(1).join(' '); setVehicle({ make, model, year: null, engine: v.engine, fuel: null, chassis: null }); loadCats(String(v.vehicleId));
+                  setVehicleId(vid);
+                  setVehicle({ make: v.make || v.carName.split(' ')[0], model: v.model || v.carName.split(' ').slice(1,3).join(' '), year: v.year || null, engine: v.engine || null, fuel: null, chassis: null });
+                  loadCats(vid);
                   setConfMsg('✅ match დადასტურებულია');
                 }}
                 className="w-full text-left px-4 py-3 border border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all text-sm font-medium text-gray-800">
@@ -297,12 +318,16 @@ export default function VINPage() {
           <div className="bg-white border border-gray-200 rounded-2xl p-5">
             <div className={`rounded-xl px-4 py-2 border text-sm font-medium mb-3 ${confCls}`}>{confMsg}</div>
             <div className="flex items-center gap-4 mb-3">
-              {vehicle.make && (
+              {carImage ? (
+                <img src={carImage} alt={vehicle.make || ''} 
+                  className="w-24 h-16 object-contain rounded-xl bg-white border border-gray-100 p-1 flex-shrink-0"
+                  onError={(e)=>{(e.target as HTMLImageElement).style.display='none'}} />
+              ) : vehicle.make ? (
                 <img src={`https://img.autodoc.de/logo/${vehicle.make.toLowerCase().replace(/\s+/g,'-')}.png`}
                   alt={vehicle.make}
                   className="w-16 h-16 object-contain rounded-xl bg-white border border-gray-100 p-2 flex-shrink-0"
                   onError={(e)=>{(e.target as HTMLImageElement).style.display='none'}} />
-              )}
+              ) : null}
               <p className="text-xl font-extrabold text-dark">{vehicle.make} {vehicle.model} {vehicle.year}</p>
             </div>
             <div className="grid grid-cols-2 gap-2 mt-3">
@@ -325,41 +350,7 @@ export default function VINPage() {
           {/* Categories */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5">
             <h2 className="font-bold text-dark mb-3">🔩 ამ მანქანის ნაწილები</h2>
-            {catsLoading ? (
-              <div className="text-center py-6 text-gray-400">⏳ კატეგორიები იტვირთება...</div>
-            ) : categories.length === 0 ? (
-              <div className="text-center py-6 text-gray-400">კატეგორიები ვერ მოიძებნა</div>
-            ) : (
-              <div>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(130px,1fr))',gap:'10px',marginBottom:'12px'}}>
-                  {parentCats.slice(0,18).map(cat => (
-                    <button key={cat.id} onClick={() => vehicleId ? (window.location.href=`/vin/${vehicleId}/${cat.id}`) : loadParts(cat)}
-                      style={{background:selCat?.id===cat.id?'#0066CC':'#f8fafc',border:selCat?.id===cat.id?'2px solid #0066CC':'1px solid #e2e8f0',borderRadius:'10px',padding:'12px 8px',display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',cursor:'pointer',transition:'all 0.15s'}}>
-                      {(cat as any).imageUrl ? (
-                        <img src={(cat as any).imageUrl} alt={cat.name} style={{width:'50px',height:'50px',objectFit:'contain',marginBottom:'8px'}} onError={(e)=>{(e.target as HTMLImageElement).style.display='none'}}/>
-                      ) : (
-                        <div style={{width:'50px',height:'50px',background:'#e2e8f0',borderRadius:'8px',marginBottom:'8px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px'}}>🔩</div>
-                      )}
-                      <span style={{fontSize:'11px',fontWeight:600,color:selCat?.id===cat.id?'#fff':'#1e3a5f',lineHeight:1.3}}>{cat.name}</span>
-                      {childCats(cat.name).length > 0 && <span style={{fontSize:'10px',color:selCat?.id===cat.id?'rgba(255,255,255,0.7)':'#94a3b8',marginTop:'2px'}}>{childCats(cat.name).length} ქვეკატ.</span>}
-                    </button>
-                  ))}
-                </div>
-                {selCat && childCats(selCat.name).length > 0 && (
-                  <div style={{background:'#f0f7ff',border:'1px solid #bfdbfe',borderRadius:'10px',padding:'10px',marginTop:'8px'}}>
-                    <div style={{fontSize:'11px',fontWeight:700,color:'#0066CC',marginBottom:'8px'}}>{selCat.name} — ქვეკატეგორიები:</div>
-                    <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'6px'}}>
-                      {childCats(selCat.name).map(c => (
-                        <button key={c.id} onClick={() => loadParts(c)}
-                          style={{background:selCat?.id===c.id?'#0066CC':'#fff',border:'1px solid #bfdbfe',borderRadius:'7px',padding:'8px 10px',fontSize:'11px',fontWeight:500,color:selCat?.id===c.id?'#fff':'#1e3a5f',cursor:'pointer',textAlign:'left'}}>
-                          {c.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            <AutodocCategoryTree className="w-full" vehicleId={vehicleId || undefined} />
           </div>
 
           {/* Parts */}
@@ -482,5 +473,14 @@ export default function VINPage() {
         </div>
       )}
     </div>
+  );
+}
+
+
+export default function VINPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>}>
+      <VINPageInner />
+    </Suspense>
   );
 }

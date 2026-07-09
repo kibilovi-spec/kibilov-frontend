@@ -7,6 +7,7 @@ interface User { id: string; name: string; email: string; phone?: string; role: 
 interface AuthState {
   user: User | null;
   loading: boolean;
+  initialized: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, phone: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -16,6 +17,7 @@ interface AuthState {
 export const useAuth = create<AuthState>((set) => ({
   user: null,
   loading: false,
+  initialized: false,
   login: async (email, password) => {
     const r = await api.post('/api/auth/login', { email, password });
     const { user, accessToken, refreshToken } = r.data;
@@ -36,13 +38,13 @@ export const useAuth = create<AuthState>((set) => ({
     set({ user: null });
   },
   fetchMe: async () => {
-    if (!getToken()) return;
+    if (!getToken()) { set({ initialized: true }); return; }
     try {
       const r = await api.get('/api/auth/me');
-      set({ user: r.data.user || r.data });
+      set({ user: r.data.user || r.data, initialized: true });
     } catch {
       removeToken();
-      set({ user: null });
+      set({ user: null, initialized: true });
     }
   },
 }));
@@ -76,6 +78,9 @@ export const useCart = create<CartState>((set, get) => ({
     try {
       const r = await api.post('/api/cart', { productId, quantity });
       set({ items: r.data?.data?.items || r.data?.items || r.data || [] });
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'add_to_cart', { items: [{ item_id: productId, quantity }] });
+      }
     } catch (e: any) {
       throw e;
     }
@@ -102,14 +107,22 @@ export const useCart = create<CartState>((set, get) => ({
 }));
 
 // ── Lang Store ────────────────────────────────────────────────────────────────
-interface LangState { lang: 'ka' | 'en' | 'ru'; setLang: (l: 'ka' | 'en' | 'ru') => void; }
-
-export const useLang = create<LangState>()(
+interface LangState { lang: 'ka' | 'en' | 'ru'; setLang: (l: 'ka' | 'en' | 'ru') => void; _hasHydrated: boolean; setHasHydrated: (b: boolean) => void; }
+const useLangStore = create<LangState>()(
   persist(
-    (set) => ({ lang: 'ka', setLang: (lang) => set({ lang }) }),
-    { name: 'kibilov-lang' }
+    (set) => ({ lang: 'ka', setLang: (lang) => set({ lang }), _hasHydrated: false, setHasHydrated: (b) => set({ _hasHydrated: b }) }),
+    {
+      name: 'kibilov-lang',
+      skipHydration: true,
+      onRehydrateStorage: () => (state) => { state?.setHasHydrated(true); },
+    }
   )
 );
+export { useLangStore };
+export function useLang() {
+  const state = useLangStore();
+  return { ...state, lang: state._hasHydrated ? state.lang : 'ka' };
+}
 
 interface WishlistState {
   items: string[];
