@@ -155,8 +155,8 @@ export default function CheckoutPage() {
               <div className="space-y-3 mb-4">
                 {cart.items.map((item: any) => (
                   <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-gray-600 flex-1 mr-2">{item.nameKa || item.nameEn} × {item.qty}</span>
-                    <span className="font-medium">{(Number(item.price) * item.qty).toFixed(2)}₾</span>
+                    <span className="text-gray-600 flex-1 mr-2">{item.nameKa || item.nameEn} × {item.quantity}</span>
+                    <span className="font-medium">{Number(item.lineTotal).toFixed(2)}₾</span>
                   </div>
                 ))}
               </div>
