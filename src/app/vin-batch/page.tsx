@@ -13,7 +13,7 @@ interface BatchResult {
 }
 
 export default function VinBatchPage() {
-  const { user } = useAuth();
+  const { user, initialized } = useAuth();
   const [raw, setRaw] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<BatchResult[]>([]);
@@ -44,6 +44,7 @@ export default function VinBatchPage() {
     setLoading(false);
   };
 
+  if (!initialized) return null;
   if (!user) {
     return (
       <div className="max-w-md mx-auto py-20 px-4 text-center">

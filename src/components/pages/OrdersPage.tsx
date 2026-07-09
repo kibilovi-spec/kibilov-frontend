@@ -27,7 +27,7 @@ const STATUS_RU: Record<string,string> = {
 
 export function OrdersPage() {
   usePageTitle('ჩემი შეკვეთები | kibilov.ge');
-  const { user } = useAuth();
+  const { user, initialized } = useAuth();
   const { lang } = useLang();
   const t = useT(lang);
   const router = useRouter();
@@ -38,9 +38,10 @@ export function OrdersPage() {
   const STATUS_LABEL = lang==='en'?STATUS_EN:lang==='ru'?STATUS_RU:STATUS_KA;
 
   useEffect(() => {
+    if (!initialized) return;
     if (!user) { router.push('/'); return; }
     api.get('/api/orders').then(r => setOrders(r.data.data || r.data.orders || [])).finally(()=>setLoading(false));
-  }, [user]);
+  }, [user, initialized]);
 
   if (loading) return (
     <div className="page-container py-24 flex items-center justify-center">

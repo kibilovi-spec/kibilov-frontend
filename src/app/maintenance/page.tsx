@@ -13,7 +13,7 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }
 };
 
 export default function MaintenancePage() {
-  const { user } = useAuth();
+  const { user, initialized } = useAuth();
   const router = useRouter();
   const [reminders, setReminders] = useState<any[]>([]);
   const [types, setTypes] = useState<Record<string, any>>({});
@@ -28,6 +28,7 @@ export default function MaintenancePage() {
   });
 
   useEffect(() => {
+    if (!initialized) return;
     if (!user) { router.push('/auth'); return; }
     Promise.all([
       api.get('/api/maintenance'),

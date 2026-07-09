@@ -38,7 +38,7 @@ export function AdminDashboard() {
   }, []);
   const [liveOrders, setLiveOrders] = useState<any[]>([]);
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, initialized } = useAuth();
 
   useAdminSocket((order) => {
     setLiveOrders(prev => [order, ...prev].slice(0, 5));
@@ -51,20 +51,21 @@ export function AdminDashboard() {
   });
 
   useEffect(() => {
+    if (!initialized) return;
     if (!user) { router.push('/auth'); return; }
     if (user.role !== 'ADMIN') { router.push('/'); return; }
     api.get('/api/admin/dashboard').then(r => setData(r.data)).catch(console.error).finally(() => setLoading(false));
-  }, [user]);
+  }, [user, initialized]);
 
   const StatCard = ({ icon, label, value, sub, color }: any) => (
-    <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-gray-500 mb-1">{label}</p>
-          <p className={`text-3xl font-bold ${color || 'text-gray-800'}`}>{value}</p>
-          {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+    <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 min-w-0">
+      <div className="flex items-start justify-between gap-2 min-w-0">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-gray-500 mb-1 truncate">{label}</p>
+          <p className={`text-2xl md:text-3xl font-bold ${color || 'text-gray-800'} truncate`}>{value}</p>
+          {sub && <p className="text-xs text-gray-400 mt-1 truncate">{sub}</p>}
         </div>
-        <span className="text-3xl">{icon}</span>
+        <span className="text-3xl flex-shrink-0">{icon}</span>
       </div>
     </div>
   );
@@ -93,9 +94,9 @@ export function AdminDashboard() {
               ['🔍 დღეს ძებნა', visitors.todaySearches, 'text-green-600'],
               ['📦 დღეს შეკვეთა', visitors.todayOrders, 'text-orange-600'],
             ].map(([label, val, color]) => (
-              <div key={label as string} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <p className={`text-3xl font-bold ${color}`}>{val || 0}</p>
-                <p className="text-xs text-gray-500 mt-1">{label}</p>
+              <div key={label as string} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 min-w-0">
+                <p className={`text-2xl md:text-3xl font-bold ${color} truncate`}>{val || 0}</p>
+                <p className="text-xs text-gray-500 mt-1 truncate">{label}</p>
               </div>
             ))}
           </div>

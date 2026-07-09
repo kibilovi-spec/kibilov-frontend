@@ -1,11 +1,13 @@
 'use client';
 import { useState } from 'react';
 import api from '@/lib/api';
-import { useAuth } from '@/store';
+import { useAuth, useLang } from '@/store';
 import Link from 'next/link';
 
 export function BulkOrderPage() {
-  const { user } = useAuth();
+  const { user, initialized } = useAuth();
+  const { lang } = useLang();
+  const t = (ka:string,en:string,ru?:string) => lang==='en'?en:lang==='ru'?(ru||ka):ka;
   const [rows, setRows] = useState([{ sku: '', qty: '1' }]);
   const [quote, setQuote] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -21,7 +23,7 @@ export function BulkOrderPage() {
 
   const getQuote = async () => {
     const items = rows.filter(r => r.sku.trim());
-    if (!items.length) return alert('შეავსეთ SKU');
+    if (!items.length) return alert(t('შეავსეთ SKU','Fill in SKU','Заполните SKU'));
     setLoading(true);
     try {
       const r = await api.post('/api/bulk/quote', { items: items.map(i => ({ sku: i.sku, qty: parseInt(i.qty)||1 })) });
@@ -40,6 +42,7 @@ export function BulkOrderPage() {
     setLoading(false);
   };
 
+  if (!initialized) return null;
   if (!user) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
@@ -99,11 +102,11 @@ export function BulkOrderPage() {
           <div className="flex gap-3 mt-4">
             <button onClick={getQuote} disabled={loading}
               className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-sm transition disabled:opacity-60">
-              {loading ? 'იტვირთება...' : '🔍 ფასის კალკულაცია'}
+              {loading ? t('იტვირთება...','Loading...','Загрузка...') : t('🔍 ფასის კალკულაცია','🔍 Calculate Price','🔍 Рассчитать цену')}
             </button>
             <button onClick={placeOrder} disabled={loading}
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-sm transition disabled:opacity-60">
-              {loading ? 'იგზავნება...' : '📦 შეკვეთა'}
+              {loading ? t('იგზავნება...','Sending...','Отправка...') : t('📦 შეკვეთა','📦 Order','📦 Заказать')}
             </button>
           </div>
         </div>
