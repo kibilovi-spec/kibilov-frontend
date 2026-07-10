@@ -70,11 +70,12 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
     } catch { window.location.href = '/products?search='+encodeURIComponent(oem); }
   };
   const [featured, setFeatured] = useState<Product[]>(initialFeatured);
+  const [loadingFeatured, setLoadingFeatured] = useState(!(initialFeatured && initialFeatured.length > 0));
 
   useEffect(() => {
     api.get(`/api/categories?lang=${lang}`).then(({data})=>setCats(data.data||[])).catch(()=>{});
     // DB featured პროდუქტები + Autodoc featured (skip if SSR data exists)
-    if (initialFeatured && initialFeatured.length > 0) return;
+    if (initialFeatured && initialFeatured.length > 0) { setLoadingFeatured(false); return; }
     Promise.all([
       api.get(`/api/products?featured=true&lang=${lang}&limit=40`).catch(()=>({data:{data:[]}})),
       api.get('/api/autodoc/featured').catch(()=>({data:{data:[]}})),
@@ -87,7 +88,7 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
       const dbSkus = new Set(dbProds.map((p:any)=>p.sku?.replace(/\s+/g,'').toUpperCase()));
       const newAd = adAll.filter((p:any)=>!dbSkus.has(p.sku?.replace(/\s+/g,'').toUpperCase()));
       setFeatured([...dbProds, ...newAd].slice(0,40));
-    });
+    }).finally(() => setLoadingFeatured(false));
   }, [lang]);
 
   useEffect(() => {
@@ -407,7 +408,9 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
           <h2 style={{fontSize:'15px',fontWeight:800,color:'#1e3a5f',display:'flex',alignItems:'center',gap:'8px'}}><span style={{display:'inline-block',width:'3px',height:'18px',background:'#2563eb',borderRadius:'2px'}}/>{t.popularParts}</h2>
 
         </div>
-        {featured.length===0?<Loader/>:(
+        {loadingFeatured?<Loader/>:featured.length===0?(
+          <p style={{textAlign:'center',color:'#94a3b8',padding:'32px 0',fontSize:'14px'}}>ამჟამად პოპულარული ნაწილები არ არის ხელმისაწვდომი</p>
+        ):(
           <div id="kibilov-prodgrid" className='prod-grid' style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'16px'}}>
             {featured.map(p=><ProductCard key={p.id} product={p}/>)}
           </div>
