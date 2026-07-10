@@ -76,19 +76,13 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
     api.get(`/api/categories?lang=${lang}`).then(({data})=>setCats(data.data||[])).catch(()=>{});
     // DB featured პროდუქტები + Autodoc featured (skip if SSR data exists)
     if (initialFeatured && initialFeatured.length > 0) { setLoadingFeatured(false); return; }
-    Promise.all([
-      api.get(`/api/products?featured=true&lang=${lang}&limit=40`).catch(()=>({data:{data:[]}})),
-      api.get('/api/autodoc/featured').catch(()=>({data:{data:[]}})),
-    ]).then(([dbRes, adRes]) => {
+    // რეალური, მარაგში მყოფი პროდუქტები საკუთარი კატალოგიდან — Autodoc placeholder-ების ნაცვლად
+    api.get(`/api/products?inStock=true&lang=${lang}&limit=40`).then((dbRes) => {
       const dbAll = dbRes.data?.data || [];
-      const adAll = adRes.data?.data || [];
       const withImg = dbAll.filter((p:any)=>p.images&&p.images.length>0);
       const withoutImg = dbAll.filter((p:any)=>!p.images||p.images.length===0);
-      const dbProds = [...withImg,...withoutImg].slice(0,8);
-      const dbSkus = new Set(dbProds.map((p:any)=>p.sku?.replace(/\s+/g,'').toUpperCase()));
-      const newAd = adAll.filter((p:any)=>!dbSkus.has(p.sku?.replace(/\s+/g,'').toUpperCase()));
-      setFeatured([...dbProds, ...newAd].slice(0,40));
-    }).finally(() => setLoadingFeatured(false));
+      setFeatured([...withImg,...withoutImg].slice(0,40));
+    }).catch(()=>{}).finally(() => setLoadingFeatured(false));
   }, [lang]);
 
   useEffect(() => {
