@@ -33,8 +33,8 @@ export default function CartPage() {
         <div className="space-y-4 mb-6">
           {items.map((item: any) => (
             <div key={item.productId} className="bg-white rounded-2xl border border-gray-200 p-4 flex items-center gap-4">
-              {(item.image||item.product?.images?.[0]) && (
-                <img src={item.image} alt={(item.name||item.product?.nameKa||'')} className="w-16 h-16 object-contain rounded-xl bg-gray-50"/>
+              {(item.images?.[0]||item.product?.images?.[0]) && (
+                <img src={item.images?.[0]||item.product?.images?.[0]} alt={(item.name||item.product?.nameKa||'')} className="w-16 h-16 object-contain rounded-xl bg-gray-50"/>
               )}
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm text-gray-800 truncate">{item.name}</p>
