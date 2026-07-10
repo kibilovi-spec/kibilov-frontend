@@ -1,14 +1,16 @@
 'use client';
 import { useEffect } from 'react';
-import { useAuth, useCart } from '@/store';
+import { useAuth, useCart, useLangStore, useWishlist } from '@/store';
 import { Toaster } from 'react-hot-toast';
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const { fetchMe } = useAuth();
   const { fetchCart } = useCart();
+  const { fetchWishlist } = useWishlist();
 
   useEffect(() => {
-    fetchMe().then(() => fetchCart());
+    useLangStore.persist.rehydrate();
+    fetchMe().then(() => { fetchCart(); fetchWishlist(); });
   }, []);
 
   return (

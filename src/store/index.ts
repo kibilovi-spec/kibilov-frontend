@@ -133,8 +133,26 @@ interface WishlistState {
 }
 export const useWishlist = create<WishlistState>((set, get) => ({
   items: [],
-  toggle: (id) => set(s => ({ items: s.items.includes(id) ? s.items.filter(i=>i!==id) : [...s.items, id] })),
+  toggle: (id) => {
+    const already = get().items.includes(id);
+    set(s => ({ items: already ? s.items.filter(i=>i!==id) : [...s.items, id] }));
+    if (already) {
+      api.delete(`/api/wishlist/${id}`).catch(() => {
+        set(s => ({ items: s.items.includes(id) ? s.items : [...s.items, id] }));
+      });
+    } else {
+      api.post(`/api/wishlist/${id}`).catch(() => {
+        set(s => ({ items: s.items.filter(i=>i!==id) }));
+      });
+    }
+  },
   has: (id) => get().items.includes(id),
   isWished: (id) => get().items.includes(id),
-  fetchWishlist: async () => {},
+  fetchWishlist: async () => {
+    try {
+      const r = await api.get('/api/wishlist');
+      const ids = (r.data?.data || []).map((w: any) => w.productId);
+      set({ items: ids });
+    } catch {}
+  },
 }));
