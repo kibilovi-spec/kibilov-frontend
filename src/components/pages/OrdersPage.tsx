@@ -110,8 +110,8 @@ export function OrdersPage() {
                 {order.items?.slice(0,4).map((item:any)=>(
                   <div key={item.id} className="flex items-center gap-2 bg-gray-bg rounded-lg px-3 py-1.5 whitespace-nowrap text-xs shrink-0">
                     {item.product?.images?.[0] && <img src={item.product.images[0]} className="w-6 h-6 object-cover rounded" alt=""/>}
-                    <span className="text-text2 max-w-[100px] truncate">{item.product?.nameKa}</span>
-                    <span className="font-semibold">×{item.quantity}</span>
+                    <span className="text-text2 max-w-[100px] truncate">{item.nameKa}</span>
+                    <span className="font-semibold">×{item.qty}</span>
                   </div>
                 ))}
                 {(order.items?.length||0)>4 && <div className="text-xs text-text3">+{order.items.length-4}</div>}
@@ -125,12 +125,12 @@ export function OrdersPage() {
                       <div key={item.id} className="flex items-center gap-3 bg-white rounded-xl p-3">
                         {item.product?.images?.[0] && <img src={item.product.images[0]} className="w-12 h-12 object-cover rounded-lg" alt=""/>}
                         <div className="flex-1">
-                          <div className="font-medium text-sm">{item.product?.nameKa}</div>
-                          <div className="text-xs text-text3">SKU: {item.product?.sku}</div>
+                          <div className="font-medium text-sm">{item.nameKa}</div>
+                          <div className="text-xs text-text3">SKU: {item.sku}</div>
                         </div>
                         <div className="text-right">
-                          <div className="font-semibold">{(item.price*item.quantity).toFixed(2)} ₾</div>
-                          <div className="text-xs text-text3">{item.price} ₾ × {item.quantity}</div>
+                          <div className="font-semibold">{(item.price*item.qty).toFixed(2)} ₾</div>
+                          <div className="text-xs text-text3">{item.price} ₾ × {item.qty}</div>
                         </div>
                       </div>
                     ))}
