@@ -50,19 +50,26 @@ export default function CheckoutPage() {
         address: { city: form.city, street: form.street, apartment: form.apartment },
         phone: form.phone,
         note: form.note,
-        paymentMethod: 'CASH',
+        paymentMethod: 'FLITT',
       });
+      const orderId = r.data.order.id;
       if (typeof window !== 'undefined' && (window as any).gtag) {
         (window as any).gtag('event', 'purchase', {
-          transaction_id: r.data.order.id,
+          transaction_id: orderId,
           value: parseFloat(r.data.order.total||0),
           currency: 'GEL',
         });
       }
       clearCart();
-      router.push(`/orders/${r.data.order.id}?success=1`);
+      // გადავამისამართოთ Flitt-ის გადახდის გვერდზე
+      const pay = await api.post('/api/payment/flitt/init', { orderId });
+      if (pay.data?.paymentUrl) {
+        window.location.href = pay.data.paymentUrl;
+      } else {
+        router.push(`/orders/${orderId}?success=1`);
+      }
     } catch(e: any) {
-      setError(e.response?.data?.message || 'შეცდომა');
+      setError(e.response?.data?.message || 'გადახდის სისტემასთან დაკავშირება ვერ მოხერხდა. გთხოვთ სცადოთ მოგვიანებით ან დაგვიკავშირდით.');
     }
     setSubmitting(false);
   };
@@ -129,21 +136,12 @@ export default function CheckoutPage() {
             {/* გადახდა */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <h2 className="font-bold text-gray-800 mb-4">💳 გადახდის მეთოდი</h2>
-              <div className="space-y-3">
-                <label className="flex items-center gap-3 p-4 border-2 border-blue-500 rounded-xl cursor-pointer bg-blue-50">
-                  <input type="radio" name="payment" value="CASH" defaultChecked className="w-4 h-4 accent-blue-600"/>
-                  <div>
-                    <p className="font-bold text-gray-800">💵 მიწოდებისას გადახდა</p>
-                    <p className="text-xs text-gray-500">კურიერს გადაიხდით ნაღდად ან ბარათით მიღებისას</p>
-                  </div>
-                </label>
-                <label className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-xl cursor-not-allowed opacity-50">
-                  <input type="radio" name="payment" value="CARD" disabled className="w-4 h-4"/>
-                  <div>
-                    <p className="font-bold text-gray-400">💳 ონლაინ გადახდა</p>
-                    <p className="text-xs text-gray-400">მალე დაემატება — BOG / TBC</p>
-                  </div>
-                </label>
+              <div className="flex items-center gap-3 p-4 border-2 border-blue-500 rounded-xl bg-blue-50">
+                <span className="text-2xl">💳</span>
+                <div>
+                  <p className="font-bold text-gray-800">ონლაინ გადახდა ბარათით</p>
+                  <p className="text-xs text-gray-500">უსაფრთხო გადახდა Visa / Mastercard — "შეკვეთის დადასტურება"-ზე დაჭერისას გადამისამართდებით გადახდის გვერდზე</p>
+                </div>
               </div>
             </div>
           </div>
