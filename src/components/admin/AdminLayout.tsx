@@ -19,6 +19,7 @@ const NAV = [
     {href:'/admin/system', label:'სისტემა', icon:'⚙️'},
   { href:'/admin/users', label:'მომხმარებლები', icon:'👥' },
   { href:'/admin/delivery', label:'მიტანა', icon:'🚚' },
+  { href:'/admin/shipments', label:'შეკვეთების მიწოდება', icon:'🚛' },
   { href:'/admin/b2b', label:'B2B', icon:'🏢' },
   { href:'/admin/suppliers', label:'მომწოდებლები', icon:'🏪' },
   { href:'/admin/integrations', label:'ინტეგრაციები', icon:'🔌' },
