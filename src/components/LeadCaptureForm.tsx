@@ -1,4 +1,5 @@
 'use client';
+import { useLang } from '@/store';
 import { useState } from 'react';
 
 interface LeadData {
@@ -10,6 +11,8 @@ interface LeadData {
 }
 
 export default function LeadCaptureForm({ leadData }: { leadData: LeadData }) {
+  const { lang } = useLang();
+  const t = (ka:string,en:string,ru?:string) => lang==='en'?en:lang==='ru'?(ru||ka):ka;
   const [phone, setPhone] = useState('');
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);

@@ -1,128 +1,212 @@
 'use client';
+import { useLang } from '@/store';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
 import api from '@/lib/api';
 
 interface AutodocCat {
   id: number;
-  parentId: number | null;
   nameKa: string;
-  nameEn: string;
   slug: string;
-  level: number;
   imageUrl: string | null;
   productCount: number;
-  children: AutodocCat[];
+  children?: AutodocCat[];
 }
 
-export function AutodocCategoryTree({ className = '' }: { className?: string }) {
+export function AutodocCategoryTree({ className = '', vehicleId }: { className?: string; vehicleId?: string }) {
+  const { lang } = useLang();
+  const t = (ka:string,en:string,ru?:string) => lang==='en'?en:lang==='ru'?(ru||ka):ka;
+  const catName = (nameKa: string) => {
+    if (!nameKa) return '';
+    const parts = nameKa.split(' / ');
+    if (parts.length === 2) {
+      return lang === 'en' ? parts[0] : parts[1];
+    }
+    return nameKa;
+  };
   const [tree, setTree] = useState<AutodocCat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<AutodocCat | null>(null);
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [cols, setCols] = useState(6);
+  const [search, setSearch] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    if (val.length < 2) { setSuggestions([]); return; }
+    const q = val.toLowerCase();
+    const matches: string[] = [];
+    tree.forEach(cat => {
+      const catWords = cat.nameKa.toLowerCase().split(/[/\s,]+/);
+      if (catWords.some((w: string) => w.startsWith(q)) || cat.nameKa.toLowerCase().startsWith(q)) {
+        matches.push(cat.nameKa);
+      }
+      (cat.children || []).forEach((sub: any) => {
+        const subWords = sub.nameKa.toLowerCase().split(/[/\s,]+/);
+        if (subWords.some((w: string) => w.startsWith(q)) || sub.nameKa.toLowerCase().startsWith(q)) {
+          matches.push(sub.nameKa);
+        }
+      });
+    });
+    setSuggestions(Array.from(new Set(matches)).slice(0, 6));
+  };
+  const router = useRouter();
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!search.trim()) return;
+    const q = encodeURIComponent(search.trim());
+    if (vehicleId) {
+      router.push(`/products?q=${q}&vehicleId=${vehicleId}`);
+    } else {
+      router.push(`/products?q=${q}`);
+    }
+  };
+  useEffect(() => {
+    const update = () => {
+      if (window.innerWidth <= 400) setCols(2);
+      else if (window.innerWidth <= 600) setCols(2);
+      else if (window.innerWidth <= 900) setCols(4);
+      else setCols(6);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  const COLS = cols;
 
   useEffect(() => {
-    api.get('/api/categories')
+    api.get('/api/categories/all-slugs')
       .then(r => {
-        if (r.data.success) {
-          const cats = (r.data.data || []).map((c: any) => ({
-            ...c,
-            nameKa: c.nameKa || c.name || '',
-            nameEn: c.nameEn || c.name || '',
-            children: (c.subcategories || c.children || []).map((s: any) => ({
-              ...s,
-              nameKa: s.nameKa || s.name || '',
-              nameEn: s.nameEn || s.name || '',
-              slug: s.slug || String(s.id),
-              children: []
-            }))
-          }));
-          setTree(cats);
-        }
+        const all = r.data.data || [];
+        const top = all.filter((c: any) => (c.level === 1 || c.level === '1') && c.slug !== 'uncategorized' && c.id !== 999999);
+        // რეკურსიულად ვაგებთ ხეს — ნებისმიერი სიღრმის მხარდაჭერით (არა მხოლოდ 2 დონე)
+        const buildNode = (cat: any): any => {
+          const directChildren = all.filter((c: any) => String(c.parentId) === String(cat.id));
+          const childNodes = directChildren.map(buildNode);
+          // თუ ამ node-ს პროდუქტი არ აქვს და ზუსტად ერთი შვილი ჰყავს, "გავფენოთ" (pass-through container)
+          const flattened = childNodes.length === 1 && !cat.productCount && childNodes[0].children?.length
+            ? childNodes[0].children
+            : childNodes;
+          return {
+            id: cat.id,
+            nameKa: cat.nameKa || cat.name || '',
+            slug: cat.slug || String(cat.id),
+            imageUrl: cat.imageUrl || null,
+            productCount: cat.productCount || 0,
+            children: flattened,
+          };
+        };
+        const withChildren = top.map(buildNode);
+        setTree(withChildren);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      {Array(15).fill(0).map((_,i) => (
-        <div key={i} className="bg-white rounded-xl p-4 animate-pulse">
-          <div className="w-20 h-20 bg-gray-200 rounded-lg mx-auto mb-3"/>
-          <div className="h-3 bg-gray-200 rounded w-3/4 mx-auto"/>
-        </div>
+    <div style={{display:'grid',gridTemplateColumns:`repeat(${COLS},1fr)`,gap:'1px',background:'#e8ecef'}}>
+      {Array(12).fill(0).map((_,i) => (
+        <div key={i} style={{background:'#fff',height:'140px'}}/>
       ))}
     </div>
   );
 
-  if (selected) {
-    return (
-      <div>
-        {/* Back + Title */}
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => setSelected(null)}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-primary transition-colors">
-            <ChevronRight className="w-4 h-4 rotate-180"/>
-            უკან
-          </button>
-          {selected.imageUrl && <img src={selected.imageUrl} alt="" className="w-8 h-8 object-contain"/>}
-          <h2 className="text-xl font-bold text-gray-900">{selected.nameKa}</h2>
-        </div>
-        {/* Children grid */}
-        {selected.children.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {selected.children.map(child => (
-              <Link key={child.id}
-                href={`/categories/${child.slug}`}
-                className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col items-center text-center hover:shadow-md hover:border-primary/30 transition-all group">
-                <div className="w-14 h-14 flex items-center justify-center mb-2">
-                  {child.imageUrl
-                    ? <img src={child.imageUrl} alt={child.nameKa} className="w-full h-full object-contain group-hover:scale-110 transition-transform" onError={(e)=>{(e.target as HTMLImageElement).style.display="none"}}/>
-                    : <div className="w-12 h-12 bg-gray-100 rounded-lg"/>
-                  }
-                </div>
-                <span className="text-sm font-medium text-gray-800 group-hover:text-primary leading-tight">
-                  {child.nameKa}
-                </span>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <Link href={`/categories/${selected.slug}`}
-            className="btn-primary inline-flex items-center gap-2">
-            პროდუქტების ნახვა <ChevronRight className="w-4 h-4"/>
-          </Link>
-        )}
-      </div>
-    );
+  // rows-ად დავყოთ
+  const rows: AutodocCat[][] = [];
+  for (let i = 0; i < tree.length; i += COLS) {
+    rows.push(tree.slice(i, i + COLS));
   }
+
+  const openRowIndex = openId !== null ? Math.floor(tree.findIndex(c => c.id === openId) / COLS) : -1;
+  const openCat = tree.find(c => c.id === openId);
 
   return (
     <div className={className}>
-      <style>{`@media(max-width:768px){.cat-grid{grid-template-columns:repeat(3,1fr)!important}}@media(max-width:480px){.cat-grid{grid-template-columns:repeat(2,1fr)!important}}`}</style>
-      <div className="cat-grid" style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)'}}>
-        {tree.map(cat => (
-          <button key={cat.id}
-            onClick={() => cat.children.length > 0 ? setSelected(cat) : window.location.href=`/categories/${cat.slug}`}
-            style={{background:'#fff',border:'1px solid #e8ecef',padding:'20px 12px 16px',display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',cursor:'pointer',outline:'none',transition:'background 0.15s'}}
-            onMouseEnter={e=>{(e.currentTarget as HTMLButtonElement).style.background='#f8f9fa';}}
-            onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.background='#fff';}}>
-            <div style={{width:'100%',height:'110px',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:'16px'}}>
-              {cat.imageUrl
-                ? <img src={cat.imageUrl} alt={cat.nameKa} style={{maxWidth:'100%',maxHeight:'110px',objectFit:'contain'}}/>
-                : <div style={{width:'70px',height:'70px',background:'#f1f3f5',borderRadius:'10px'}}/>
-              }
+      <form onSubmit={handleSearch} style={{display:'flex',gap:'8px',marginBottom:'12px',position:'relative'}}>
+        <input
+          value={search}
+          onChange={e => handleSearchChange(e.target.value)}
+          onBlur={() => setTimeout(() => setSuggestions([]), 200)}
+          placeholder="ნაწილის ძებნა... (ზეთის ფილტრი, სამუხრუჭე...)"
+          style={{flex:1,padding:'10px 14px',borderRadius:'10px',border:'1.5px solid #e2e8f0',fontSize:'14px',outline:'none'}}
+          autoComplete="off"
+        />
+        {suggestions.length > 0 && (
+          <div style={{position:'absolute',top:'100%',left:0,right:'60px',background:'#fff',border:'1px solid #e2e8f0',borderRadius:'10px',boxShadow:'0 4px 16px rgba(0,0,0,0.1)',zIndex:50,marginTop:'4px'}}>
+            {suggestions.map((s, i) => (
+              <button key={i} type="button"
+                onMouseDown={() => { setSearch(s); setSuggestions([]); handleSearch({preventDefault:()=>{}} as any); }}
+                style={{display:'block',width:'100%',textAlign:'left',padding:'8px 14px',border:'none',background:'none',cursor:'pointer',fontSize:'13px',color:'#334155',borderBottom: i < suggestions.length-1 ? '1px solid #f1f5f9' : 'none'}}>
+                🔍 {s}
+              </button>
+            ))}
+          </div>
+        )}
+        <button type="submit" style={{padding:'10px 20px',background:'#2563eb',color:'#fff',borderRadius:'10px',border:'none',cursor:'pointer',fontWeight:700,fontSize:'14px'}}>
+          🔍
+        </button>
+      </form>
+      <div style={{background:'#e8ecef',display:'flex',flexDirection:'column',gap:'1px'}}>
+      <style>{`
+        @media(max-width:900px){.cat-row{grid-template-columns:repeat(4,1fr)!important}}
+        @media(max-width:600px){.cat-row{grid-template-columns:repeat(2,1fr)!important}}
+        @media(max-width:400px){.cat-row{grid-template-columns:repeat(2,1fr)!important}}
+        .cat-tree-item:hover{background:#f5f7fa!important}
+        .cat-tree-item.active{background:#ebf3ff!important;border-bottom:2px solid #2563eb!important}
+        .cat-tree-item img{transition:transform 0.2s}
+        .cat-tree-item:hover img{transform:scale(1.05)}
+        .sub-link:hover{background:#ebf3ff!important;border-color:#2563eb!important}
+      `}</style>
+
+      {rows.map((row, rowIdx) => (
+        <div key={rowIdx}>
+          <div className="cat-row" style={{display:'grid',gridTemplateColumns:`repeat(${COLS},1fr)`,gap:'1px',background:'#e8ecef'}}>
+            {row.map(cat => (
+              <div
+                key={cat.id}
+                className={`cat-tree-item ${openId === cat.id ? 'active' : ''}`}
+                style={{background:'#fff',padding:'20px 12px 16px',display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',cursor:'pointer',transition:'background 0.15s',borderBottom:'2px solid transparent'}}
+                onClick={() => setOpenId(openId === cat.id ? null : cat.id)}
+              >
+                <div style={{width:'100%',height:'90px',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:'12px'}}>
+                  {cat.imageUrl
+                    ? <img src={cat.imageUrl?.replace(/\.png$/, '.webp')} alt={catName(cat.nameKa)} loading="lazy" style={{maxWidth:'90px',maxHeight:'90px',objectFit:'contain'}} onError={e=>{const t=e.target as HTMLImageElement; t.src=cat.imageUrl||''; t.onerror=()=>t.style.display='none';}}/>
+                    : <div style={{width:'60px',height:'60px',background:'#f1f3f5',borderRadius:'8px'}}/>
+                  }
+                </div>
+                <span style={{fontSize:'12px',fontWeight:500,color:'#1e3a5f',lineHeight:1.4}}>
+                  {catName(cat.nameKa)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {openRowIndex === rowIdx && openCat && (
+            <div style={{background:'#fff',borderTop:'3px solid #2563eb',padding:'20px 24px',position:'relative',boxShadow:'0 4px 16px rgba(0,0,0,0.10)'}}>
+              <button onClick={() => setOpenId(null)} style={{position:'absolute',top:'12px',right:'16px',background:'none',border:'none',fontSize:'20px',cursor:'pointer',color:'#94a3b8'}}>×</button>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:'8px'}}>
+                {openCat.children && openCat.children.length > 0 ? openCat.children.map(sub => (
+                  <Link key={sub.id} href={vehicleId ? `/products?category=${sub.slug}&vehicleId=${vehicleId}` : `/categories/${sub.slug}`}
+                    className="sub-link"
+                    style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 12px',borderRadius:'8px',textDecoration:'none',background:'#f8fafc',border:'1px solid #e2e8f0',transition:'all 0.15s'}}
+                    onClick={() => setOpenId(null)}>
+                    {sub.imageUrl && <img src={(sub.imageUrl||'').replace(/\.png$/, '.webp')} alt={sub.nameKa} loading="lazy" style={{width:'32px',height:'32px',objectFit:'contain'}} onError={e=>{(e.target as HTMLImageElement).src=sub.imageUrl||'';}}/>}
+                    <span style={{fontSize:'12px',fontWeight:500,color:'#1e3a5f'}}>{catName(sub.nameKa)}</span>
+                  </Link>
+                )) : (
+                  <Link href={vehicleId ? `/products?category=${openCat.slug}&vehicleId=${vehicleId}` : `/categories/${openCat.slug}`}
+                    style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 12px',borderRadius:'8px',textDecoration:'none',background:'#f8fafc',border:'1px solid #e2e8f0'}}
+                    onClick={() => setOpenId(null)}>
+                    <span style={{fontSize:'12px',fontWeight:500,color:'#1e3a5f'}}>{catName(openCat.nameKa)} {lang==='en'?'all parts →':lang==='ru'?'все запчасти →':'ყველა ნაწილი →'}</span>
+                  </Link>
+                )}
+              </div>
             </div>
-            <div style={{width:'8px',height:'8px',borderRadius:'50%',background:'#0066CC',marginBottom:'10px',flexShrink:0}}/>
-            <span style={{fontSize:'13px',fontWeight:400,color:'#1e3a5f',lineHeight:1.4}}>
-              {cat.nameKa}
-            </span>
-          </button>
-        ))}
-      </div>
-      <div style={{textAlign:'center',padding:'24px 0'}}>
-        <a href="/products" style={{display:'inline-flex',alignItems:'center',gap:'8px',border:'1.5px solid #1e3a5f',borderRadius:'4px',padding:'12px 28px',fontSize:'13px',fontWeight:500,color:'#1e3a5f',textDecoration:'none',background:'#fff',transition:'all 0.2s'}}>ყველა კატეგორია →</a>
-      </div>
+          )}
+        </div>
+      ))}
+    </div>
     </div>
   );
 }

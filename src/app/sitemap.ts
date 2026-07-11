@@ -17,6 +17,14 @@ async function getProducts() {
   } catch { return []; }
 }
 
+async function getAutodocFeatured() {
+  try {
+    const r = await fetch('http://localhost:3001/api/autodoc/featured', { next: { revalidate: 3600 } });
+    const data = await r.json();
+    return data.data || [];
+  } catch { return []; }
+}
+
 async function getCategories() {
   try {
     const r = await fetch('http://localhost:3001/api/categories', { next: { revalidate: 3600 } });
@@ -46,6 +54,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: 'https://kibilov.ge/service', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
     { url: 'https://kibilov.ge/contact', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
     { url: 'https://kibilov.ge/parts', lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
+    { url: 'https://kibilov.ge/rustavi', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    { url: 'https://kibilov.ge/tbilisi', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    { url: 'https://kibilov.ge/blog', lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
     { url: 'https://kibilov.ge/vin', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     { url: 'https://kibilov.ge/find-mechanic', lastModified: new Date(), changeFrequency: 'weekly', priority: 0.7 },
     { url: 'https://kibilov.ge/faq', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
@@ -61,12 +72,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  const categoryPages: MetadataRoute.Sitemap = categories.map((c: any) => ({
-    url: `https://kibilov.ge/categories/${c.slug || c.id}`,
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  }));
+  const categoryPages: MetadataRoute.Sitemap = [];
+  for (const c of categories) {
+    categoryPages.push({
+      url: `https://kibilov.ge/categories/${c.slug || c.id}`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    });
+    for (const sub of (c.subcategories || [])) {
+      categoryPages.push({
+        url: `https://kibilov.ge/categories/${sub.slug || sub.id}`,
+        lastModified: new Date(),
+        changeFrequency: 'weekly' as const,
+        priority: 0.6,
+      });
+    }
+  }
 
   const blogPages: MetadataRoute.Sitemap = BLOG_POSTS.map(slug => ({
     url: `https://kibilov.ge/blog/${slug}`,
@@ -96,5 +118,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticPages, ...productPages, ...categoryPages, ...blogPages, ...brandPages, ...oemPages];
+  // Autodoc პროდუქტები
+  let autodocProducts: any[] = [];
+  try {
+    autodocProducts = await getAutodocFeatured();
+  } catch {}
+  const autodocPages: MetadataRoute.Sitemap = autodocProducts.map((p: any) => ({
+    url: `https://kibilov.ge/products/${p.id}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }));
+
+  return [...staticPages, ...productPages, ...autodocPages, ...categoryPages, ...blogPages, ...brandPages, ...oemPages];
 }

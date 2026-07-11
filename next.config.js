@@ -2,9 +2,13 @@ const { withSentryConfig } = require('@sentry/nextjs');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: { instrumentationHook: true },
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'recharts'],
+    instrumentationHook: true,
+  },
   compress: true,
   poweredByHeader: false,
+  swcMinify: true,
   async rewrites() {
     return [
       {
@@ -20,7 +24,7 @@ const nextConfig = {
   images: {
     domains: ['localhost', 'kibilov.ge', 'cdn.kibilov.ge'],
     formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 86400,
+    minimumCacheTTL: 2592000,
     remotePatterns: [
       { protocol: 'http',  hostname: 'localhost', port: '3001' },
       { protocol: 'https', hostname: '**' },
@@ -35,4 +39,12 @@ module.exports = withSentryConfig(nextConfig, {
   widenClientFileUpload: true,
   hideSourceMaps: true,
   disableLogger: true,
+  disableServerWebpackPlugin: true,
+  disableClientWebpackPlugin: false,
+  bundleSizeOptimizations: {
+    excludeDebugStatements: true,
+    excludeReplayShadowDom: true,
+    excludeReplayIframe: true,
+    excludeReplayWorker: true,
+  },
 });

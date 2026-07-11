@@ -1,4 +1,5 @@
 'use client';
+import { useLang } from '@/store';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
@@ -10,6 +11,8 @@ interface Props {
 }
 
 export function CompatibilityBanner({ make, model, year, vehicleId }: Props) {
+  const { lang } = useLang();
+  const t = (ka:string,en:string,ru?:string) => lang==='en'?en:lang==='ru'?(ru||ka):ka;
   const [count, setCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 

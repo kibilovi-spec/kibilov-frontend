@@ -21,6 +21,8 @@ const NAV = [
   { href:'/admin/delivery', label:'მიტანა', icon:'🚚' },
   { href:'/admin/b2b', label:'B2B', icon:'🏢' },
   { href:'/admin/suppliers', label:'მომწოდებლები', icon:'🏪' },
+  { href:'/admin/integrations', label:'ინტეგრაციები', icon:'🔌' },
+  { href:'/admin/support', label:'მხარდაჭერა', icon:'💬' },
   { href:'/admin/work-queue', label:'სამუშაო რიგი', icon:'⚙️' },
   { href:'/admin/audit', label:'ისტორია', icon:'📋' },
 ];
@@ -86,8 +88,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       </div>
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-30 bg-black/50" onClick={()=>setMobileOpen(false)}>
-          <div className="bg-[#1A2130] w-60 h-full pt-16" onClick={e=>e.stopPropagation()}>
-            <nav className="p-3 space-y-1">
+          <div className="bg-[#1A2130] w-60 h-full pt-16 overflow-y-auto" onClick={e=>e.stopPropagation()}>
+            <nav className="p-3 space-y-1 pb-8">
               {NAV.map(n=>(
                 <Link key={n.href} href={n.href} onClick={()=>setMobileOpen(false)}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-white/10 ${pathname===n.href?'bg-blue-600 text-white':''}`}>

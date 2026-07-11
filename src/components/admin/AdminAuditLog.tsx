@@ -60,7 +60,7 @@ export default function AdminAuditLog() {
       ) : logs.length === 0 ? (
         <div className="text-center py-12 text-gray-400">ჩანაწერი არ არის</div>
       ) : (
-        <div className="card overflow-hidden">
+        <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>

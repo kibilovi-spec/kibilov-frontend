@@ -25,6 +25,9 @@ export function CategoryPage() {
   const [total, setTotal] = useState(0);
   const [sort, setSort] = useState('');
   const [addedId, setAddedId] = useState<string | null>(null);
+  const [autodocProducts, setAutodocProducts] = useState<any[]>([]);
+  const [autodocLoading, setAutodocLoading] = useState(false);
+  const [activeVehicleId, setActiveVehicleId] = useState<number>(19942);
 
   const NAME = (c: any) => {
     if (!c) return '';
@@ -34,8 +37,27 @@ export function CategoryPage() {
   };
 
   useEffect(() => {
+    api.get('/api/garage').then(r => {
+      const vehicles = r.data.data || r.data.vehicles || [];
+      if (vehicles.length > 0 && vehicles[0].vehicleId) setActiveVehicleId(vehicles[0].vehicleId);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (!slug) return;
-    api.get(`/api/categories/${slug}`).then(r => setCategory(r.data.data || r.data)).catch(() => {});
+    api.get(`/api/categories/${slug}`).then(r => {
+      const cat = r.data.data || r.data;
+      setCategory(cat);
+      // Autodoc პროდუქტები
+      const catId = cat?.id;
+      if (catId && !isNaN(parseInt(catId))) {
+        setAutodocLoading(true);
+        api.get('/api/autodoc/articles', { params: { categoryId: catId, vehicleId: activeVehicleId } })
+          .then(r2 => setAutodocProducts(r2.data.data || []))
+          .catch(() => {})
+          .finally(() => setAutodocLoading(false));
+      }
+    }).catch(() => {});
   }, [slug]);
 
   useEffect(() => {
@@ -109,11 +131,11 @@ export function CategoryPage() {
             <div key={i} className="bg-white rounded-xl h-64 animate-pulse border border-gray-100"/>
           ))}
         </div>
-      ) : products.length === 0 ? (
+      ) : products.length === 0 && autodocProducts.length === 0 ? (
         <div className="text-center py-20">
           <p className="text-4xl mb-4">📦</p>
-          <p className="text-gray-500">პროდუქტები არ მოიძებნა</p>
-          <Link href="/products" className="mt-4 inline-block text-blue-600 hover:underline">ყველა პროდუქტი →</Link>
+          <p className="text-gray-500">{lang==='en'?'No products found':lang==='ru'?'Товары не найдены':'პროდუქტები არ მოიძებნა'}</p>
+          <Link href="/products" className="mt-4 inline-block text-blue-600 hover:underline">{lang==='en'?'All products →':lang==='ru'?'Все товары →':'ყველა პროდუქტი →'}</Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -121,7 +143,7 @@ export function CategoryPage() {
             <div key={p.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-blue-500 hover:shadow-lg transition group flex flex-col">
               <Link href={`/products/${p.id}`} className="relative block h-44 sm:h-36 bg-gray-50 flex items-center justify-center text-5xl">
                 {p.images?.[0] ? (
-                  <img src={p.images[0]} alt={p.nameKa} className="h-full w-full object-contain p-2"/>
+                  <img src={p.images[0]} alt={p.nameKa} loading="lazy" className="h-full w-full object-contain p-2"/>
                 ) : <span>🔧</span>}
                 {p.badge && (
                   <span className={`absolute top-2 left-2 px-2 py-0.5 rounded text-xs font-bold ${STATUS_BADGES[p.badge] || 'bg-gray-200'}`}>
@@ -151,6 +173,46 @@ export function CategoryPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Catalog Products */}
+      {autodocProducts.length > 0 && (
+        <div className="mt-6">
+          <h2 className="text-lg font-bold text-gray-700 mb-4">
+            {lang==='en'?'Order from catalog':lang==='ru'?'Заказать из каталога':'კატალოგიდან შეკვეთა'} 
+            <span className="ml-2 text-sm font-normal text-gray-400">({autodocProducts.length})</span>
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {autodocProducts.map((p:any) => (
+              <div key={p.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-blue-400 hover:shadow-md transition flex flex-col">
+                <div className="h-36 bg-gray-50 flex items-center justify-center">
+                  {p.images?.[0] ? <img src={p.images[0]} alt={p.nameEn} loading="lazy" className="h-full w-full object-contain p-2"/> : <span className="text-4xl">🔧</span>}
+                </div>
+                <div className="p-3 flex flex-col flex-1">
+                  <p className="text-xs font-bold text-blue-600 mb-1">{p.brand}</p>
+                  <p className="text-sm font-semibold text-gray-800 line-clamp-2 mb-1">{p.nameEn||p.nameKa}</p>
+                  <p className="text-xs text-gray-400 mb-2">{p.sku}</p>
+                  {p.descriptionEn && (() => {
+                    const fitting = p.descriptionEn.split('\n').find((l:string)=>l.startsWith('Fitting Position:'));
+                    const val = fitting?.split(': ')?.[1];
+                    const label = val==='VA'?(lang==='en'?'Front':lang==='ru'?'Передние':'წინა'):val==='HA'?(lang==='en'?'Rear':lang==='ru'?'Задние':'უკანა'):val==='VA+HA'?(lang==='en'?'Front+Rear':lang==='ru'?'Перед+Зад':'წინა+უკანა'):null;
+                    return label?<span className="inline-block bg-blue-50 text-blue-600 text-xs font-bold px-2 py-1 rounded-lg mb-1 mr-1">{label}</span>:null;
+                  })()}
+                  <div className="mt-auto">
+                    <span className="inline-block bg-orange-50 text-orange-600 text-xs font-bold px-2 py-1 rounded-lg mb-2">
+                      {lang==='en'?'Price on request':lang==='ru'?'Цена по запросу':'ფასი გასარკვევია'}
+                    </span>
+                    <a href={`https://wa.me/995577575052?text=${encodeURIComponent((lang==='en'?'Hello! Interested in: ':lang==='ru'?'Здравствуйте! Интересует: ':'გამარჯობა! მაინტერესებს: ') + (p.nameEn||p.nameKa) + ' ' + p.sku)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="w-full bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition">
+                      <span>💬</span> WhatsApp
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

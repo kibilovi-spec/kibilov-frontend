@@ -62,6 +62,35 @@ VIN (Vehicle Identification Number) — მანქანის უნიკა
   },
 };
 
+const INTERNAL_LINKS: Record<string, {url: string, text: string}> = {
+  'ზეთის ფილტრი': { url: '/categories/filters', text: 'ზეთის ფილტრი' },
+  'საჰაერო ფილტრი': { url: '/categories/filters', text: 'საჰაერო ფილტრი' },
+  'სალონის ფილტრი': { url: '/categories/filters', text: 'სალონის ფილტრი' },
+  'სამუხრუჭე კოლოდკები': { url: '/categories/braking-system', text: 'სამუხრუჭე კოლოდკები' },
+  'სამუხრუჭე დისკი': { url: '/categories/braking-system', text: 'სამუხრუჭე დისკი' },
+  'ამომრტყმელი': { url: '/categories/suspension-damping', text: 'ამომრტყმელი' },
+  'ამორტიზატორი': { url: '/categories/suspension-damping', text: 'ამორტიზატორი' },
+  'სანთელი': { url: '/categories/spark-glow-ignition', text: 'სანთელი' },
+  'გრანტი': { url: '/categories/wheel-drive', text: 'გრანტი' },
+  'VIN სკანირება': { url: '/vin', text: 'VIN სკანირება' },
+};
+
+function renderContent(text: string) {
+  const lines = text.trim().split('\n');
+  return lines.map((line, i) => {
+    if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold text-gray-800 mt-6 mb-3">{line.slice(3)}</h2>;
+    if (line.startsWith('**') && line.endsWith('**')) return <p key={i} className="font-bold text-gray-800 my-2">{line.slice(2,-2)}</p>;
+    if (line.startsWith('- ')) {
+      const t = line.slice(2).replace(/\*\*(.*?)\*\*/g, '$1');
+      return <li key={i} className="ml-4 text-gray-700 my-1">• {t}</li>;
+    }
+    if (line.trim() === '') return <br key={i} />;
+    // internal links
+    let jsx: any = line.replace(/\*\*(.*?)\*\*/g, '$1');
+    return <p key={i} className="text-gray-700 my-2">{jsx}</p>;
+  });
+}
+
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const post = posts[params.slug];
   if (!post) return { title: 'ბლოგი — Kibilov' };
@@ -93,7 +122,7 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-6">{post.title}</h1>
           <div className="prose prose-gray max-w-none text-gray-700 leading-relaxed whitespace-pre-line">
-            {post.content}
+            <div className="prose prose-lg max-w-none">{renderContent(post.content)}</div>
           </div>
           <div className="mt-8 pt-6 border-t border-gray-100">
             <Link href="/products" className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition">

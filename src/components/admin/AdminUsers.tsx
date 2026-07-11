@@ -31,6 +31,21 @@ export function AdminUsers() {
       fetch();
     } catch { alert('შეცდომა'); }
   };
+  const [garageCityDraft, setGarageCityDraft] = useState<Record<string,string>>({});
+  const toggleGarage = async (userId: string, isPartnerGarage: boolean) => {
+    try {
+      await api.patch(`/api/admin/users/${userId}/garage`, { isPartnerGarage });
+      setUsers(us => us.map((u:any)=>u.id===userId?{...u, isPartnerGarage}:u));
+    } catch { alert('შეცდომა'); }
+  };
+  const saveGarageCity = async (userId: string) => {
+    const garageCity = garageCityDraft[userId];
+    if (garageCity === undefined) return;
+    try {
+      await api.patch(`/api/admin/users/${userId}/garage`, { garageCity });
+      setUsers(us => us.map((u:any)=>u.id===userId?{...u, garageCity}:u));
+    } catch { alert('შეცდომა'); }
+  };
 
   return (
     <AdminLayout>
@@ -46,15 +61,15 @@ export function AdminUsers() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
-                <tr>{['სახელი','Email','ტელ.','რეგ. თარიღი','შეკვეთები','როლი',''].map(h=>(
+                <tr>{['სახელი','Email','ტელ.','რეგ. თარიღი','შეკვეთები','როლი','🔧 გარაჟი',''].map(h=>(
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
                 ))}</tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr><td colSpan={7} className="py-12 text-center"><div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"/></td></tr>
+                  <tr><td colSpan={8} className="py-12 text-center"><div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"/></td></tr>
                 ) : users.length === 0 ? (
-                  <tr><td colSpan={7} className="py-12 text-center text-gray-400">მომხმარებლები ვერ მოიძებნა</td></tr>
+                  <tr><td colSpan={8} className="py-12 text-center text-gray-400">მომხმარებლები ვერ მოიძებნა</td></tr>
                 ) : users.map((u:any) => (
                   <tr key={u.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
@@ -74,15 +89,35 @@ export function AdminUsers() {
                       </button>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role==='ADMIN'?'bg-purple-100 text-purple-800':'bg-gray-100 text-gray-600'}`}>
-                        {u.role==='ADMIN'?'ადმინი':'მომხ.'}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role==='ADMIN'?'bg-purple-100 text-purple-800':u.role==='WHOLESALE'?'bg-blue-100 text-blue-800':u.role==='DEALER'?'bg-green-100 text-green-800':'bg-gray-100 text-gray-600'}`}>
+                        {u.role==='ADMIN'?'ადმინი':u.role==='WHOLESALE'?'საბითუმო':u.role==='DEALER'?'დილერი':'მომხ.'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <button onClick={()=>toggleAdmin(u.id, u.role!=='ADMIN')}
-                        className="text-xs text-gray-500 hover:text-gray-800 hover:underline">
-                        {u.role==='ADMIN'?'ამოღება':'ადმინი'}
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <input type="checkbox" checked={!!u.isPartnerGarage}
+                          onChange={e=>toggleGarage(u.id, e.target.checked)}
+                          className="w-4 h-4 accent-green-600 cursor-pointer" title="პარტნიორი გარაჟი" />
+                        <input value={garageCityDraft[u.id] ?? u.garageCity ?? ''}
+                          onChange={e=>setGarageCityDraft(d=>({...d,[u.id]:e.target.value}))}
+                          onBlur={()=>saveGarageCity(u.id)}
+                          placeholder="ქალაქი"
+                          className="w-20 text-xs border border-gray-200 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={u.role||'USER'}
+                        onChange={async (e) => {
+                          await api.patch(`/api/admin/users/${u.id}/role`, { role: e.target.value });
+                          window.location.reload();
+                        }}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 cursor-pointer">
+                        <option value="USER">მომხმარებელი</option>
+                        <option value="WHOLESALE">საბითუმო</option>
+                        <option value="DEALER">დილერი</option>
+                        <option value="ADMIN">ადმინი</option>
+                      </select>
                     </td>
                   </tr>
                 ))}

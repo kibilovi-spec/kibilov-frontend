@@ -64,6 +64,7 @@ export function Footer() {
                 { href:'/faq', label:lang==='en'?'FAQ':lang==='ru'?'Вопросы и ответы':'ხშირი კითხვები' },
                 { href:'/delivery', label:lang==='en'?'Delivery & Returns':lang==='ru'?'Доставка и возврат':'მიტანა და დაბრუნება' },
                 { href:'/blog', label:lang==='en'?'Blog':lang==='ru'?'Блог':'ბლოგი' },
+                { href:'/find-mechanic', label:lang==='en'?'Find a Mechanic':lang==='ru'?'Найти мастера':'იპოვე ხელოსანი' },
                 { href:'/about', label:lang==='en'?'About Us':lang==='ru'?'О нас':'ჩვენს შესახებ' },
                 { href:'/contact', label:lang==='en'?'Contact':lang==='ru'?'Контакты':'კონტაქტი' },
               ].map(n=>(
@@ -82,6 +83,8 @@ export function Footer() {
             <ul className="space-y-2">
               {[
                 { href:'/b2b-apply', label:lang==='en'?'B2B Application':lang==='ru'?'B2B заявка':'B2B განაცხადი' },
+                { href:'/bulk-order', label:lang==='en'?'Bulk Order':lang==='ru'?'Оптовый заказ':'ბალკ შეკვეთა' },
+                { href:'/b2b/bulk', label:lang==='en'?'Bulk OEM Search':lang==='ru'?'Массовый поиск OEM':'ბალკ OEM ძებნა' },
                 { href:'/supplier/register', label:lang==='en'?'Become Supplier':lang==='ru'?'Стать поставщиком':'გახდი მომწოდებელი' },
 
               ].map(n=>(

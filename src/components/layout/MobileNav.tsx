@@ -1,19 +1,21 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useCart } from '@/store';
+import { useCart, useLang } from '@/store';
 
 export default function MobileNav() {
   const pathname = usePathname();
   const { items } = useCart();
   const cartCount = items.reduce((s, i) => s + i.quantity, 0);
+  const { lang } = useLang();
+  const t = (ka:string,en:string,ru?:string) => lang==='en'?en:lang==='ru'?(ru||ka):ka;
 
   const tabs = [
-    { href: '/', icon: '🏠', label: 'მთავარი' },
-    { href: '/categories', icon: '📦', label: 'კატეგორიები' },
-    { href: '/products', icon: '🔍', label: 'ძებნა' },
-    { href: '/garage', icon: '🚗', label: 'გარაჟი' },
-    { href: '/cart', icon: '🛒', label: 'კალათა', badge: cartCount },
+    { href: '/', icon: '🏠', label: t('მთავარი','Home','Главная') },
+    { href: '/categories', icon: '📦', label: t('კატეგორიები','Categories','Категории') },
+    { href: '/products', icon: '🔍', label: t('ძებნა','Search','Поиск') },
+    { href: '/garage', icon: '🚗', label: t('გარაჟი','Garage','Гараж') },
+    { href: '/cart', icon: '🛒', label: t('კალათა','Cart','Корзина'), badge: cartCount },
   ];
 
   const isActive = (href: string) => href === '/' ? pathname === '/' : pathname.startsWith(href);

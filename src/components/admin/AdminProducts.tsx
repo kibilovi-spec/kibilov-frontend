@@ -4,6 +4,104 @@ import { useSearchParams } from 'next/navigation';
 import { AdminLayout } from './AdminLayout';
 import api from '@/lib/api';
 
+function CategoryPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [cats, setCats] = useState<any[]>([]);
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    api.get('/api/categories/all-slugs').then(r => setCats(r.data.data || [])).catch(() => {});
+  }, []);
+
+  const byId: Record<string, any> = {};
+  cats.forEach((c: any) => { byId[String(c.id)] = c; });
+  const childrenOf: Record<string, any[]> = {};
+  cats.forEach((c: any) => {
+    const pid = c.parentId ? String(c.parentId) : 'root';
+    if (!childrenOf[pid]) childrenOf[pid] = [];
+    childrenOf[pid].push(c);
+  });
+  Object.values(childrenOf).forEach((arr: any) => arr.sort((a: any, b: any) => (a.nameKa || a.nameEn || '').localeCompare(b.nameKa || b.nameEn || '')));
+
+  const buildPath = (id: string): string => {
+    const path: string[] = [];
+    let cur = byId[String(id)];
+    let guard = 0;
+    while (cur && guard < 10) {
+      path.unshift(cur.nameKa || cur.nameEn);
+      cur = cur.parentId ? byId[String(cur.parentId)] : null;
+      guard++;
+    }
+    return path.join(' / ');
+  };
+  const displayVal = value ? buildPath(value) : '';
+
+  const q = search.trim().toLowerCase();
+  const searchResults = q
+    ? cats.filter((c: any) => (c.nameKa || '').toLowerCase().includes(q) || (c.nameEn || '').toLowerCase().includes(q)).slice(0, 50)
+    : null;
+
+  const renderNode = (c: any, depth: number): any => {
+    const kids = childrenOf[String(c.id)] || [];
+    const isExpanded = expandedIds.has(String(c.id));
+    const isSelected = value === String(c.id);
+    return (
+      <div key={c.id}>
+        <div className={`flex items-center hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`} style={{ paddingLeft: 12 + depth * 16 }}>
+          {kids.length > 0 ? (
+            <button type="button"
+              onClick={() => setExpandedIds(prev => { const n = new Set(prev); const k = String(c.id); n.has(k) ? n.delete(k) : n.add(k); return n; })}
+              className="w-6 h-6 flex items-center justify-center text-gray-400 text-xs flex-shrink-0">
+              {isExpanded ? '−' : '+'}
+            </button>
+          ) : <span className="w-6 h-6 flex-shrink-0" />}
+          <button type="button"
+            onClick={() => { onChange(String(c.id)); setOpen(false); setSearch(''); }}
+            className={`flex-1 text-left py-2 pr-3 text-sm ${isSelected ? 'text-blue-700 font-medium' : 'text-gray-700'}`}>
+            {c.nameKa || c.nameEn}
+          </button>
+        </div>
+        {isExpanded && kids.map((k: any) => renderNode(k, depth + 1))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="relative">
+      <label className="text-xs text-gray-500 mb-1 block">კატეგორია (Autodoc)</label>
+      <button type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-left flex justify-between items-center bg-white hover:border-blue-400 transition">
+        <span className={displayVal ? 'text-gray-800' : 'text-gray-400'}>{displayVal || '-- აირჩიე კატეგორია --'}</span>
+        <span className="text-gray-400 text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-xl shadow-lg mt-1 max-h-80 overflow-y-auto">
+          <div className="p-2 border-b border-gray-100 sticky top-0 bg-white">
+            <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="ძებნა..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+          {searchResults ? (
+            searchResults.length === 0 ? (
+              <div className="px-4 py-6 text-center text-gray-400 text-sm">ვერაფერი მოიძებნა</div>
+            ) : searchResults.map((c: any) => (
+              <button key={c.id} type="button"
+                onClick={() => { onChange(String(c.id)); setOpen(false); setSearch(''); }}
+                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition border-b border-gray-50 ${value === String(c.id) ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}`}>
+                <div>{c.nameKa || c.nameEn}</div>
+                <div className="text-xs text-gray-400">{buildPath(String(c.parentId || ''))}</div>
+              </button>
+            ))
+          ) : (
+            (childrenOf['root'] || []).map((c: any) => renderNode(c, 0))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminProducts() {
   const sp = useSearchParams();
   const [products, setProducts] = useState<any[]>([]);
@@ -47,7 +145,7 @@ export function AdminProducts() {
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
   const [adding, setAdding] = useState(false);
-  const [newProduct, setNewProduct] = useState({nameKa:'',nameEn:'',sku:'',brand:'',articleNumber:'',price:'',stock:'',description:''});
+  const [newProduct, setNewProduct] = useState({nameKa:'',nameEn:'',sku:'',brand:'',articleNumber:'',price:'',stock:'',description:'',autodocCategoryId:''});
   const [saving, setSaving] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [newProductImages, setNewProductImages] = useState<string[]>([]);
@@ -108,6 +206,7 @@ export function AdminProducts() {
       price: p.price||'', stock: p.stock||0,
       description: p.description||'', isActive: p.isActive!==false,
       images: p.images||[],
+      autodocCategoryId: p.autodocCategoryId ? String(p.autodocCategoryId) : '',
     });
   };
 
@@ -126,6 +225,7 @@ export function AdminProducts() {
         description: editForm.description,
         isActive: editForm.isActive,
         images: editForm.images,
+        autodocCategoryId: editForm.autodocCategoryId || null,
       });
       setEditFull(null);
       fetch();
@@ -158,6 +258,24 @@ export function AdminProducts() {
   const [finaImporting, setFinaImporting] = useState(false);
   const [finaResult, setFinaResult] = useState<any>(null);
   const [finaModal, setFinaModal] = useState(false);
+  const [finaStatus, setFinaStatus] = useState<any>(null);
+  const finaPollRef = { current: null as any };
+
+  const pollFinaStatus = () => {
+    const poll = async () => {
+      try {
+        const { data } = await api.get('/api/admin/fina-import-status');
+        setFinaStatus(data);
+        if (data.status === 'processing') {
+          finaPollRef.current = setTimeout(poll, 5000);
+        } else {
+          setFinaImporting(false);
+          if (data.result) setFinaResult(data.result);
+        }
+      } catch { setFinaImporting(false); }
+    };
+    poll();
+  };
   const [finaFiles, setFinaFiles] = useState<{tamazuka: File|null, kakha: File|null}>({tamazuka:null, kakha:null});
 
   const finaImport = async () => {
@@ -167,10 +285,16 @@ export function AdminProducts() {
       if (finaFiles.tamazuka) formData.append('tamazuka', finaFiles.tamazuka);
       if (finaFiles.kakha) formData.append('kakha', finaFiles.kakha);
       const r = await api.post('/api/admin/fina-import-upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setFinaResult(r.data.results);
+      if (r.data.status === 'already_processing') {
+        alert(r.data.message);
+        setFinaImporting(false);
+        pollFinaStatus();
+        return;
+      }
       setFinaModal(false);
-    } catch(e:any) { alert('შეცდომა: ' + e.message); }
-    setFinaImporting(false);
+      pollFinaStatus();
+      return;
+    } catch(e:any) { alert('შეცდომა: ' + e.message); setFinaImporting(false); }
   };
 
   const syncFina = async () => {
@@ -193,7 +317,7 @@ export function AdminProducts() {
         images: newProductImages,
       });
       setAdding(false);
-      setNewProduct({nameKa:'',nameEn:'',sku:'',brand:'',articleNumber:'',price:'',stock:'',description:''});
+      setNewProduct({nameKa:'',nameEn:'',sku:'',brand:'',articleNumber:'',price:'',stock:'',description:'',autodocCategoryId:''});
       setNewProductImages([]);
       fetch();
     } catch(e:any){ alert('error: '+e.message); } finally { setSaving(false); }
@@ -220,7 +344,9 @@ export function AdminProducts() {
         )}
           <div className="flex gap-2 flex-wrap">
             <button onClick={()=>setFinaModal(true)} className="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800">
-              📂 FINA Import
+              {finaStatus?.status === 'processing'
+                ? `⏳ მუშავდება... ${Math.floor((finaStatus.elapsedSec||0)/60)}წთ ${(finaStatus.elapsedSec||0)%60}წმ`
+                : '📂 FINA Import'}
             </button>
             <button onClick={syncFina} disabled={syncing}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-60">
@@ -244,7 +370,20 @@ export function AdminProducts() {
               fd.append('markup', String(markup));
               try {
                 const r = await api.post('/api/admin/products/import', fd, {headers:{'Content-Type':'multipart/form-data'}});
-                alert('added: ' + r.data.added + ', updated: ' + r.data.updated + (markup > 0 ? ' (+'+markup+'% ფასნამატი)' : ''));
+                const rep = r.data.report;
+                const msg = rep
+                  ? `✅ იმპორტი დასრულდა!\n\n` +
+                    `📦 სულ: ${rep.total}\n` +
+                    `🤖 ავტო კატეგ: ${rep.autoMatched} (${rep.accuracy})\n` +
+                    `⚠️ Review Queue: ${rep.review}\n` +
+                    `❌ უცნობი: ${rep.unknown}\n\n` +
+                    `➕ დამატებული: ${r.data.added}\n` +
+                    `🔄 განახლებული: ${r.data.updated}` +
+                    (markup > 0 ? `\n💰 ფასნამატი: +${markup}%` : '') +
+                    (rep.review > 0 ? `\n\n⚠️ ${rep.review} პროდუქტი Review Queue-ში გადავიდა` : '')
+                  : 'added: ' + r.data.added + ', updated: ' + r.data.updated;
+                alert(msg);
+                if (rep?.review > 0) window.location.href = '/admin/review-queue';
                 fetch();
               } catch(e:any){ alert('error: '+e.message); }
               e.target.value = '';
@@ -265,19 +404,28 @@ export function AdminProducts() {
                   ) : (
                     <div className="space-y-3">
                       {importHistory.map((b:any) => (
-                        <div key={b.id} className="border rounded-lg p-4 flex justify-between items-center">
-                          <div>
-                            <div className="font-medium text-sm">{b.filename}</div>
+                        <div key={b.id} className="border rounded-lg p-4 flex justify-between items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm truncate">{b.filename}</div>
                             <div className="text-xs text-gray-500 mt-1">
-                              {new Date(b.importedAt || b.imported_at).toLocaleString('ka-GE')} · {b.productCount || b.active_products || 0} პროდუქტი
+                              {new Date(b.importedAt || b.imported_at).toLocaleString('ka-GE')} · ✅ {b.productCount || b.active_products || 0} აიტვირთა
+                              {b.rejectedCount > 0 && <span className="text-red-500"> · ❌ {b.rejectedCount} ვერ დაემთხვა</span>}
                             </div>
                           </div>
-                          <button
-                            onClick={() => deleteBatch(b.id, b.filename)}
-                            disabled={deletingBatch === b.id}
-                            className="bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">
-                            {deletingBatch === b.id ? '...' : '🗑️ წაშლა'}
-                          </button>
+                          <div className="flex gap-2 flex-shrink-0">
+                            {b.rejectedReportUrl && (
+                              <a href={b.rejectedReportUrl} download
+                                className="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap">
+                                📥 ვერ დაემთხვა ({b.rejectedCount})
+                              </a>
+                            )}
+                            <button
+                              onClick={() => deleteBatch(b.id, b.filename)}
+                              disabled={deletingBatch === b.id}
+                              className="bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">
+                              {deletingBatch === b.id ? '...' : '🗑️'}
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -285,9 +433,13 @@ export function AdminProducts() {
                 </div>
               </div>
             )}
-            <a href="/sample-import.xlsx" download
+            <a href="/api/admin/categories-export" download="kibilov_import.xlsx"
               className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition">
-              ნიმუში Excel
+              📥 ნიმუში Excel
+            </a>
+            <a href="/api/admin/categories-export" download="categories.xlsx"
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700 transition">
+              📋 კატეგორიები
             </a>
             <button onClick={()=>setAdding(true)}
               className="bg-green-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-800 transition">
@@ -328,7 +480,7 @@ export function AdminProducts() {
                         {p.images?.[0] && <img src={p.images[0]} className="w-10 h-10 object-cover rounded-lg" alt=""/>}
                         <div>
                           <p className="font-medium text-gray-800 line-clamp-1">{p.nameKa||p.nameEn||'—'}</p>
-                          <p className="text-xs text-gray-400">{p.category?.nameKa||''}</p>
+                          <p className="text-xs text-gray-400">{p.autodocCategory?.nameKa||''}</p>
                         </div>
                       </div>
                     </td>
@@ -432,6 +584,7 @@ export function AdminProducts() {
                 <textarea rows={2} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   value={editForm.description} onChange={e=>setEditForm((f:any)=>({...f,description:e.target.value}))} />
               </div>
+              <CategoryPicker value={editForm.autodocCategoryId||''} onChange={v=>setEditForm((f:any)=>({...f,autodocCategoryId:v}))}/>
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">სურათები ({(editForm.images||[]).length}/5)</label>
                 <div className="flex flex-wrap gap-2 mb-2">
@@ -537,6 +690,7 @@ export function AdminProducts() {
               </div>
               <textarea placeholder="აღწერა" value={newProduct.description} onChange={e=>setNewProduct({...newProduct,description:e.target.value})}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none"/>
+              <CategoryPicker value={newProduct.autodocCategoryId} onChange={v=>setNewProduct({...newProduct,autodocCategoryId:v})}/>
             </div>
             {/* სურათები */}
             <div className="space-y-2">

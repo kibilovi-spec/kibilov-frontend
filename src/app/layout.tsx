@@ -54,16 +54,29 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
   verification: { google: '7BJHEitpkS6a7Y3Tgvml_6iNf5AOLFuTQsf7qCIIamY' },
+  other: { google: 'notranslate' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ka">
+    <html lang="ka" translate="no" className="notranslate">
       <head>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-CCC2BZ35K5"></script>
+        <script dangerouslySetInnerHTML={{__html: `
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-CCC2BZ35K5');
+        `}} />
 
         <link rel="icon" href="/favicon.ico" />
+        <link rel="preload" href="/_next/static/media/e4af272ccee01ff0-s.p.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" href="/_next/static/media/a6c4972a91679e5a-s.p.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://fsn1.your-objectstorage.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://fsn1.your-objectstorage.com" />
+        <link rel="dns-prefetch" href="https://o4511590646415360.ingest.de.sentry.io" />
       </head>
-      <body className={`${notoSansGeorgian.variable} ${inter.variable}`}>
+      <body className={`${notoSansGeorgian.variable} ${inter.variable}`} translate="no">
         <AppProviders>
           <Header />
           <main className="min-h-screen pb-16 md:pb-0" style={{overflowX:"hidden"}}>{children}
@@ -71,7 +84,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <VisitTracker />
         <StructuredData />
         <PushNotifications /></main>
-          <AiChat />
           <BottomNav />
           <Footer />
           <MobileNav />

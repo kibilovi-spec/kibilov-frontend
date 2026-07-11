@@ -70,9 +70,9 @@ export const useVehicleStore = create<VehicleStore>()(
       name: 'kibilov-vehicle',
       // sessionStorage — tab-ზე ინახება, browser close-ზე იწმინდება
       storage: {
-        getItem: (k) => { try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
-        setItem: (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
-        removeItem: (k) => { try { sessionStorage.removeItem(k); } catch {} },
+        getItem: (k) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
+        setItem: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+        removeItem: (k) => { try { localStorage.removeItem(k); } catch {} },
       },
     }
   )

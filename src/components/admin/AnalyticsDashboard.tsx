@@ -85,6 +85,7 @@ export default function AnalyticsDashboard() {
           <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px', color: '#0f172a' }}>
             📅 დღიური სტატისტიკა
           </h3>
+          <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
@@ -104,6 +105,7 @@ export default function AnalyticsDashboard() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

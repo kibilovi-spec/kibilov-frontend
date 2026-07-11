@@ -1,4 +1,5 @@
 'use client';
+import { useLang } from '@/store';
 import { useState, useRef, useEffect } from 'react';
 
 interface OemResult {

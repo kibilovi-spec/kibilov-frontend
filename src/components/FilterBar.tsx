@@ -1,4 +1,5 @@
 'use client';
+import { useLang } from '@/store';
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import api from '@/lib/api';
@@ -18,12 +19,21 @@ function CatNode({ node, selected, onSelect, depth = 0 }: { node: AutodocCat; se
   const [open, setOpen] = useState(false);
   const has = node.children.length > 0;
   const sel = selected === node.slug;
+  const handleClick = () => {
+    if (has) {
+      setOpen(o => !o);
+    } else {
+      onSelect(sel ? '' : node.slug);
+    }
+  };
   return (
     <div>
       <div className={`flex items-center gap-1.5 py-1.5 rounded-lg cursor-pointer transition-colors ${sel ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 text-gray-700'}`}
         style={{ paddingLeft: depth * 12 + 8, paddingRight: 8 }}
-        onClick={() => { onSelect(sel ? '' : node.slug); if (has) setOpen(o => !o); }}>
-        <span className="w-3 h-3 flex-shrink-0">{has ? (open ? <ChevronDown className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>) : null}</span>
+        onClick={handleClick}>
+        <span className="w-3 h-3 flex-shrink-0">
+          {has ? (open ? <ChevronDown className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>) : null}
+        </span>
         {depth === 0 && node.imageUrl && <img src={node.imageUrl} alt="" className="w-5 h-5 object-contain flex-shrink-0"/>}
         <span className="truncate text-xs font-medium">{node.nameKa}</span>
       </div>
@@ -31,7 +41,10 @@ function CatNode({ node, selected, onSelect, depth = 0 }: { node: AutodocCat; se
     </div>
   );
 }
-export default function FilterBar({ filters, brands, onChange, onClear }: FilterBarProps) {
+export default function FilterBar({
+filters, brands, onChange, onClear }: FilterBarProps) {
+  const { lang } = useLang();
+  const t = (ka:string,en:string,ru?:string) => lang==='en'?en:lang==='ru'?(ru||ka):ka;
   const [priceOpen, setPriceOpen] = useState(false);
   const [catOpen, setCatOpen] = useState(true);
   const [tree, setTree] = useState<AutodocCat[]>([]);
@@ -60,7 +73,7 @@ export default function FilterBar({ filters, brands, onChange, onClear }: Filter
       )}
       <div>
         <button onClick={() => setCatOpen(o => !o)} className="text-xs font-bold text-gray-500 mb-2 flex items-center justify-between w-full">
-          <span>კატეგორია</span>
+          <span>{t('კატეგორია','Category','Категория')}</span>
           {catOpen ? <ChevronDown className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>}
         </button>
         {catOpen && (
@@ -75,7 +88,7 @@ export default function FilterBar({ filters, brands, onChange, onClear }: Filter
         <div className={`w-10 h-5 rounded-full transition-colors ${filters.inStock ? 'bg-green-500' : 'bg-gray-200'}`} onClick={() => onChange('inStock', !filters.inStock)}>
           <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${filters.inStock ? 'translate-x-5' : ''}`}/>
         </div>
-        <span className="text-sm font-medium text-gray-700">მარაგშია</span>
+        <span className="text-sm font-medium text-gray-700">{t('მარაგშია','In Stock','В наличии')}</span>
       </label>
       <div>
         <label className="text-xs font-bold text-gray-500 mb-2 block">ბრენდი</label>

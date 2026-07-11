@@ -72,11 +72,19 @@ export default async function OemPage({ params }: Props) {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e3a5f', marginBottom: '2px' }}>{a.desc}</div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>{a.brand} · <span style={{ fontFamily: 'monospace', color: '#0066CC' }}>{a.code}</span></div>
-                  <a href={`https://wa.me/995577575052?text=${encodeURIComponent('გამარჯობა! მაინტერესებს: ' + a.desc + ' ' + a.brand + ' ' + a.code + ' - გამოიძიეთ ფასი')}`}
-                    target="_blank"
-                    style={{ display: 'inline-block', padding: '5px 12px', background: '#25d366', color: '#fff', borderRadius: '6px', fontSize: '11px', fontWeight: 700, textDecoration: 'none' }}>
-                    📱 შეკვეთა
-                  </a>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {a.articleId && (
+                      <a href={`/products/autodoc_${a.articleId}`}
+                        style={{ display: 'inline-block', padding: '5px 12px', background: '#2563eb', color: '#fff', borderRadius: '6px', fontSize: '11px', fontWeight: 700, textDecoration: 'none' }}>
+                        ნახვა →
+                      </a>
+                    )}
+                    <a href={`https://wa.me/995577575052?text=${encodeURIComponent('გამარჯობა! მაინტერესებს: ' + a.desc + ' ' + a.brand + ' ' + a.code + ' - გამოიძიეთ ფასი')}`}
+                      target="_blank"
+                      style={{ display: 'inline-block', padding: '5px 12px', background: '#25d366', color: '#fff', borderRadius: '6px', fontSize: '11px', fontWeight: 700, textDecoration: 'none' }}>
+                      📱 შეკვეთა
+                    </a>
+                  </div>
                 </div>
               </div>
             ))}

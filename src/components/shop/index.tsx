@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 import { useCart, useAuth, useLang } from '@/store';
 import { useT } from '@/lib/i18n';
@@ -19,9 +20,10 @@ export function ProductCard({ product }: { product: Product }) {
 
   const inCart = items.some(i => i.productId === product.id);
 
-  const name = lang==='en' ? (product.nameEn||product.nameKa)
+  const rawName = lang==='en' ? (product.nameEn||product.nameKa)
     : lang==='ru' ? (product.nameRu||product.nameKa)
     : product.nameKa || (product as any).name || '';
+  const name = rawName.replace(/\s*\|[^|]*\|\s*/g, ' ').replace(/\s*\|.*$/, '').trim();
 
   const price    = Number(product.price);
   const oldPrice = product.priceOld ? Number(product.priceOld) : null;
@@ -49,8 +51,10 @@ export function ProductCard({ product }: { product: Product }) {
       {/* IMAGE */}
       <div className="relative bg-gray-50 aspect-square overflow-hidden">
         {product.images?.[0] ? (
-          <img src={product.images[0]} alt={name}
-            className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-300" />
+          <Image src={product.images[0]} alt={name} width={300} height={300}
+            className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-300"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            loading="lazy" />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-1">
             <span className="text-4xl">🔧</span>
@@ -87,31 +91,22 @@ export function ProductCard({ product }: { product: Product }) {
       <div className="p-3 flex flex-col flex-1 gap-1">
 
         {/* Brand */}
-        {product.brand && (
-          <div className="flex items-center gap-2 h-6">
-            <img
-              src={`/images/brands/${product.brand.toLowerCase().replace(/\s+/g,'-').replace(/\//g,'-')}.png`}
-              alt={product.brand}
-              className="h-5 max-w-[60px] object-contain"
-              onError={(e)=>{
-                const t=e.target as HTMLImageElement;
-                t.style.display='none';
-                const s=t.nextElementSibling as HTMLElement;
-                if(s) s.style.display='inline';
-              }}
-            />
-            <span className="hidden text-[10px] font-bold text-gray-400 uppercase tracking-widest">{product.brand}</span>
+        {product.brand && product.brand.toLowerCase() !== 'generic' && (
+          <div className="h-5 flex items-center">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{product.brand}</span>
           </div>
         )}
+
 
         {/* Name */}
         <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 flex-1 min-h-[40px]">{name}</p>
 
-        {/* OEM codes */}
-        {product.oemCodes && product.oemCodes.length > 0 && (
+        {/* SKU / OEM codes */}
+        {(product.sku || (product.oemCodes && product.oemCodes.length > 0)) && (
           <div className="flex flex-wrap gap-1 mt-1">
-            {product.oemCodes.filter((c:string)=>c.length>=4&&c.length<=15&&!c.startsWith('SKU')&&!c.includes(':')).slice(0,2).map((c:string)=>(
-              <span key={c} className="text-[9px] font-mono bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded">{c}</span>
+            {product.sku && <span className="text-[11px] font-mono bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded">{product.sku}</span>}
+            {product.oemCodes && product.oemCodes.filter((c:string)=>c.length>=4&&c.length<=15&&!c.startsWith('SKU')&&!c.includes(':')).slice(0,2).map((c:string)=>(
+              <span key={c} className="text-[11px] font-mono bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded">{c}</span>
             ))}
           </div>
         )}
@@ -126,6 +121,10 @@ export function ProductCard({ product }: { product: Product }) {
                   <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold">B2B</span>
                 </div>
                 <span className="text-xs text-gray-400 line-through">{price} ₾</span>
+              </div>
+            ) : (product as any).source === 'autodoc' || product.price === null ? (
+              <div>
+                <span className="text-sm font-bold text-orange-500">ფასი გასარკვევია</span>
               </div>
             ) : (
               <div>
@@ -149,16 +148,28 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
 
         {/* CTA */}
-        <button onClick={handleAdd}
-          disabled={product.stock <= 0 || adding}
-          className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] mt-1
-            ${inCart ? 'bg-green-500 text-white'
-              : product.stock <= 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'bg-primary hover:bg-primary-dark text-white'}`}>
-          {adding ? '...' : inCart
-            ? `✓ ${t.inCart||'კალათაში'}`
-            : `🛒 ${t.addToCart||'კალათაში'}`}
-        </button>
+        {(product as any).source === 'autodoc' || product.price === null ? (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.open(`https://wa.me/995577575052?text=${encodeURIComponent('გამარჯობა! ' + (product.nameKa||product.nameEn||'') + ' (' + (product.sku||'') + ') - ფასი მაინტერესებს')}`, '_blank', 'noopener,noreferrer');
+            }}
+            className="w-full py-2.5 rounded-xl text-sm font-bold transition-all mt-1 bg-green-500 hover:bg-green-600 text-white flex items-center justify-center gap-1">
+            📱 შეკვეთა
+          </button>
+        ) : (
+          <button onClick={handleAdd}
+            disabled={product.stock <= 0 || adding}
+            className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] mt-1
+              ${inCart ? 'bg-green-500 text-white'
+                : product.stock <= 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-primary hover:bg-primary-dark text-white'}`}>
+            {adding ? '...' : inCart
+              ? `✓ ${t.inCart||'კალათაში'}`
+              : `🛒 ${t.addToCart||'კალათაში'}`}
+          </button>
+        )}
       </div>
     </Link>
   );
@@ -171,12 +182,13 @@ function ANodeItem({node,selected,onSelect,depth=0}:{node:ANode;selected:string;
   const [open,setOpen]=useState(false);
   const has=node.children.length>0;
   const sel=selected===node.slug;
+  const handleClick=()=>{ if(has){ setOpen(o=>!o); } else { onSelect(sel?'':node.slug); } };
   return (
     <div>
       <div
         className={`flex items-center gap-2 py-2 rounded-lg cursor-pointer transition-colors ${sel?'bg-primary text-white':'hover:bg-gray-bg text-text2'}`}
         style={{paddingLeft:depth*14+10,paddingRight:10}}
-        onClick={()=>{onSelect(sel?'':node.slug);if(has)setOpen(o=>!o);}}>
+        onClick={handleClick}>
         <span className="w-3.5 h-3.5 flex-shrink-0 opacity-40">
           {has?(open
             ?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6l5 5 5-5"/></svg>

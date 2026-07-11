@@ -1,4 +1,5 @@
 'use client';
+import { useLang } from '@/store';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { useState } from 'react';
 

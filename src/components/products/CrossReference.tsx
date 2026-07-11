@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { useLang } from '@/store';
 
 interface Analog {
   articleId: number;
@@ -11,6 +12,8 @@ interface Analog {
 }
 
 export default function CrossReference({ sku }: { sku: string }) {
+  const { lang } = useLang();
+  const t = (ka:string,en:string,ru?:string) => lang==='en'?en:lang==='ru'?(ru||ka):ka;
   const [analogs, setAnalogs] = useState<Analog[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -71,7 +74,7 @@ export default function CrossReference({ sku }: { sku: string }) {
               onClick={() => setShowAll(!showAll)}
               className="w-full py-2 text-sm text-blue-600 hover:bg-blue-50 transition"
             >
-              {showAll ? 'ნაკლები' : `კიდევ ${analogs.length - 8} ანალოგი`}
+              {showAll ? t('ნაკლები','Less','Меньше') : t(`კიდევ ${analogs.length-8} ანალოგი`,`${analogs.length-8} more analogs`,`Ещё ${analogs.length-8} аналогов`)}
             </button>
           )}
         </div>

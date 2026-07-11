@@ -1,20 +1,26 @@
 'use client';
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-
 export default function FitsVehicles({ oemCode }: { oemCode: string }) {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string,boolean>>({});
-
   useEffect(() => {
     if (!oemCode) return;
     api.get(`/api/autodoc/compatible-cars?oem=${encodeURIComponent(oemCode)}`)
-      .then(r => setVehicles(r.data?.vehicles || []))
+      .then(r => {
+        const v = r.data?.vehicles || [];
+        setVehicles(v);
+        // პირველი მარკა ავტომატურად გავხსნათ
+        if (v.length > 0) {
+          const firstMake = v[0].make || 'Other';
+          setExpanded({ [firstMake]: true });
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [oemCode]);
-
+  const toggle = (make: string) => setExpanded(prev => ({ ...prev, [make]: !prev[make] }));
   if (loading) return <div className="text-sm text-gray-400 py-4">⏳ იტვირთება...</div>;
   if (!vehicles.length) return (
     <div className="text-center py-6 text-gray-400">
@@ -22,17 +28,12 @@ export default function FitsVehicles({ oemCode }: { oemCode: string }) {
       <p className="text-sm">თავსებადი მანქანები ვერ მოიძებნა</p>
     </div>
   );
-
-  // მარკის მიხედვით დავაჯგუფოთ
   const grouped: Record<string, any[]> = {};
   vehicles.forEach(v => {
-    const make = v.make || 'სხვა';
+    const make = v.make || 'Other';
     if (!grouped[make]) grouped[make] = [];
     grouped[make].push(v);
   });
-
-  const toggle = (make: string) => setExpanded(p => ({...p, [make]: !p[make]}));
-
   return (
     <div>
       <div style={{border:'1px solid #e2e8f0',borderRadius:'12px',overflow:'hidden'}}>
@@ -52,13 +53,8 @@ export default function FitsVehicles({ oemCode }: { oemCode: string }) {
               <div style={{background:'#f8fafc',padding:'8px 16px 12px 16px'}}>
                 {cars.map((v, j) => (
                   <div key={j} style={{display:'flex',alignItems:'center',gap:'8px',padding:'6px 0',borderBottom: j<cars.length-1?'1px solid #e2e8f0':'none'}}>
-                    <span style={{color:'#2563eb',fontWeight:700,fontSize:'14px'}}>+</span>
-                    <span style={{fontSize:'13px',color:'#334155',flex:1}}>
-                      {v.make} {v.model}
-                    </span>
-                    <span style={{fontSize:'12px',color:'#64748b'}}>
-                      {v.engine} · {v.yearFrom}–{v.yearTo || '→'}
-                    </span>
+                    <span style={{fontSize:'13px',color:'#334155',flex:1}}>{v.make} {v.model}</span>
+                    <span style={{fontSize:'12px',color:'#64748b'}}>{v.engine} · {v.yearFrom}–{v.yearTo || '→'}</span>
                   </div>
                 ))}
               </div>

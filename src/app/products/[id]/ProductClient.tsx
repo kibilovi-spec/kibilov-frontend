@@ -3,6 +3,7 @@ import api from '@/lib/api';
 import { useState, useEffect } from 'react';
 import Link from 'next/link'
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { useLang, useAuth, useCart, useWishlist } from '@/store';
 import { useT } from '@/lib/i18n';
 import { ProductCard } from '@/components/shop/index';
@@ -25,6 +26,16 @@ export default function ProductClient({ p, related: relatedProducts }: { p: any,
   const [related, setRelated] = useState<any[]>([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
   const [relatedLoaded, setRelatedLoaded] = useState(false);
+  const [crossRefs, setCrossRefs] = useState<any[]>([]);
+  const [crossRefsTotal, setCrossRefsTotal] = useState(0);
+  const [crossRefsLoading, setCrossRefsLoading] = useState(false);
+  const [crossRefsLoaded, setCrossRefsLoaded] = useState(false);
+  const [diagram, setDiagram] = useState<{parts:any[],image:string|null}|null>(null);
+  const [diagramLoading, setDiagramLoading] = useState(false);
+  const [diagramLoaded, setDiagramLoaded] = useState(false);
+  const [diagramHover, setDiagramHover] = useState<number|null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const loadSpecs = async () => {
     if (specsLoaded) return;
@@ -42,6 +53,32 @@ export default function ProductClient({ p, related: relatedProducts }: { p: any,
     setSpecsLoaded(true);
   };
 
+  const loadDiagram = async () => {
+    if (diagramLoaded) return;
+    setDiagramLoading(true);
+    try {
+      const artId = p.autodocArticleId || p.id?.replace('autodoc_','');
+      if (!artId) return;
+      const r = await api.get(`/api/autodoc/diagram/${artId}`);
+      if (r.data.parts?.length > 0) setDiagram(r.data);
+    } catch {}
+    setDiagramLoading(false);
+    setDiagramLoaded(true);
+  };
+  const loadCrossRefs = async () => {
+    if (crossRefsLoaded) return;
+    setCrossRefsLoading(true);
+    try {
+      const artId = p.autodocArticleId || p.id?.replace('autodoc_','');
+      const oem = (p.oemCodes || [])[0];
+      const qs = artId && String(artId).length < 15 ? `articleId=${artId}` : `oem=${encodeURIComponent(oem||'')}`;
+      const r = await api.get(`/api/autodoc/cross-refs?${qs}`);
+      setCrossRefs(r.data.refs || []);
+      setCrossRefsTotal(r.data.total || 0);
+    } catch {}
+    setCrossRefsLoading(false);
+    setCrossRefsLoaded(true);
+  };
   const loadRelated = async () => {
     if (!specsLoaded) await loadSpecs();
   };
@@ -274,6 +311,85 @@ export default function ProductClient({ p, related: relatedProducts }: { p: any,
     </div>
     )}
 
+    {/* Parts Diagram */}
+    <div className="max-w-4xl mx-auto px-4 mt-4 pb-2">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+        <button onClick={loadDiagram} className="flex items-center justify-between w-full">
+          <h2 className="text-lg font-bold text-gray-800">🔧 ნაწილების სქემა</h2>
+          <span className="text-blue-600 text-sm font-medium">{diagramLoaded ? (diagram ? `${diagram.parts.length} ნაწილი` : 'სქემა არ არის') : 'ჩვენება →'}</span>
+        </button>
+        {diagramLoading && <p className="text-sm text-gray-400 mt-3">⏳ იტვირთება...</p>}
+        {diagramLoaded && !diagram && <p className="text-sm text-gray-400 mt-3">სქემა ვერ მოიძებნა</p>}
+        {diagram && diagram.image && (
+          <div className="mt-4">
+            <div className="relative inline-block w-full" suppressHydrationWarning>
+              <img src={diagram.image} alt="Parts diagram" className="w-full rounded-xl border border-gray-100" />
+              {mounted && (
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 800 600">
+                {diagram.parts.map((part: any, i: number) => (
+                  <g key={i} onClick={() => setDiagramHover(diagramHover === i ? null : i)} style={{cursor:'pointer'}}>
+                    {part.type === 'Circle' ? (
+                      <circle
+                        cx={part.x + part.w/2} cy={part.y + part.h/2} r={part.w/2}
+                        fill={diagramHover === i ? 'rgba(37,99,235,0.3)' : 'rgba(37,99,235,0.15)'}
+                        stroke={diagramHover === i ? '#1d4ed8' : '#2563eb'}
+                        strokeWidth="2"
+                      />
+                    ) : (
+                      <rect
+                        x={part.x} y={part.y} width={part.w} height={part.h}
+                        fill={diagramHover === i ? 'rgba(37,99,235,0.3)' : 'rgba(37,99,235,0.15)'}
+                        stroke={diagramHover === i ? '#1d4ed8' : '#2563eb'}
+                        strokeWidth="2" rx="4"
+                      />
+                    )}
+                    <text x={part.x + part.w/2} y={part.y + part.h/2 + 5} textAnchor="middle" fontSize="12" fontWeight="bold" fill="#1d4ed8">{i+1}</text>
+                  </g>
+                ))}
+              </svg>
+              )}
+            </div>
+            <div className="mt-3 space-y-2">
+              {diagram.parts.map((part: any, i: number) => (
+                <div key={i}
+                  onClick={() => setDiagramHover(diagramHover === i ? null : i)}
+                  className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-colors ${diagramHover === i ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-transparent'}`}>
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">{i+1}</span>
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">{part.brand}</p>
+                    <p className="text-xs font-mono text-blue-600">{part.articleNo}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+    {/* AUTODOC Cross-References */}
+    <div className="max-w-4xl mx-auto px-4 mt-4 pb-2">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+        <button onClick={loadCrossRefs} className="flex items-center justify-between w-full">
+          <h2 className="text-lg font-bold text-gray-800">🔄 ანალოგები და Cross-Reference</h2>
+          <span className="text-blue-600 text-sm font-medium">{crossRefsLoaded ? `${crossRefsTotal} ანალოგი` : 'ჩვენება →'}</span>
+        </button>
+        {crossRefsLoading && <p className="text-sm text-gray-400 mt-3">⏳ იტვირთება...</p>}
+        {crossRefsLoaded && crossRefs.length === 0 && <p className="text-sm text-gray-400 mt-3">ანალოგები ვერ მოიძებნა</p>}
+        {crossRefs.length > 0 && (
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+            {crossRefs.map((ref: any, i: number) => (
+              <div key={i} className="flex items-center gap-2 p-2 border border-gray-100 rounded-xl hover:bg-blue-50 transition-colors">
+                {ref.image && <img src={ref.image} alt={ref.brand} className="w-10 h-10 object-contain rounded-lg bg-gray-50 flex-shrink-0" />}
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-gray-700 truncate">{ref.brand}</p>
+                  <p className="text-xs font-mono text-blue-600 truncate">{ref.article_number}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
     <div className="max-w-4xl mx-auto px-4 mt-10 pb-4">
       <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
         <button onClick={loadCompatCars}

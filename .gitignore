@@ -4,3 +4,6 @@
 node_modules/
 .next/
 *.log
+*.bak
+*.bak.*
+*.bak2.*

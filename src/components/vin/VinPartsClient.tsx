@@ -1,4 +1,5 @@
 'use client';
+import { useLang } from '@/store';
 import { useState } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
@@ -18,6 +19,8 @@ interface Part {
 }
 
 export default function VinPartsClient({ parts }: { parts: Part[] }) {
+  const { lang } = useLang();
+  const t = (ka:string,en:string,ru?:string) => lang==='en'?en:lang==='ru'?(ru||ka):ka;
   const [supplierFilter, setSupplierFilter] = useState('');
   const [oemMap, setOemMap] = useState<Record<number,any[]>>({});
   const [loadingOem, setLoadingOem] = useState<number|null>(null);

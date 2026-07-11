@@ -1,4 +1,5 @@
 'use client';
+import { useLang } from '@/store';
 import LeadCaptureForm from './LeadCaptureForm';
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
@@ -32,19 +33,36 @@ interface Message {
   oemHint?: { code: string; image: string | null };
 }
 
-const PLACEHOLDERS = [
+const PLACEHOLDERS_KA = [
   'Toyota Camry 2018, წინა ამორტიზატორი...',
   'BMW E90 2010, ზეთის ფილტრი...',
   'Golf 6, სამუხრუჭე ხუნდები...',
   'Opel Astra H, წყლის ტუმბო...',
   'Nissan X-Trail, CV joint...',
 ];
+const PLACEHOLDERS_EN = [
+  'Toyota Camry 2018, front shock absorber...',
+  'BMW E90 2010, oil filter...',
+  'Golf 6, brake pads...',
+  'Opel Astra H, water pump...',
+  'Nissan X-Trail, CV joint...',
+];
+const PLACEHOLDERS_RU = [
+  'Toyota Camry 2018, передний амортизатор...',
+  'BMW E90 2010, масляный фильтр...',
+  'Golf 6, тормозные колодки...',
+  'Opel Astra H, водяной насос...',
+  'Nissan X-Trail, CV joint...',
+];
 
 export default function AiChat() {
+  const { lang } = useLang();
+  const t = (ka:string,en:string,ru?:string) => lang==='en'?en:lang==='ru'?(ru||ka):ka;
+  const PLACEHOLDERS = lang==='en'?PLACEHOLDERS_EN:lang==='ru'?PLACEHOLDERS_RU:PLACEHOLDERS_KA;
   const [open, setOpen] = useState(false);
   const [analyticsId, setAnalyticsId] = useState<string|null>(null);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', text: 'მოგესალმებით. მიუთითეთ ავტომობილის მოდელი და სასურველი დეტალი — მოვძებნი.' }
+    { role: 'assistant', text: t('მოგესალმებით. მიუთითეთ ავტომობილის მოდელი და სასურველი დეტალი — მოვძებნი.','Hello! Enter your car model and the part you need — I will find it.','Здравствуйте! Укажите модель авто и нужную деталь — найду.') }
   ]);
   const [input, setInput] = useState('');
   const [vehicle, setVehicle] = useState<{brand?:string;model?:string;year?:string;engine?:string} | null>(() => {
@@ -81,7 +99,7 @@ export default function AiChat() {
   const startVoice = () => {
     if (typeof window === 'undefined') return;
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) { alert('თქვენი ბრაუზერი ხმოვან ძებნას არ უჭერს მხარს'); return; }
+    if (!SpeechRecognition) { alert(t('თქვენი ბრაუზერი ხმოვან ძებნას არ უჭერს მხარს','Your browser does not support voice search','Ваш браузер не поддерживает голосовой поиск')); return; }
     const recognition = new SpeechRecognition();
     recognition.lang = 'ka-GE';
     recognition.interimResults = false;
@@ -143,7 +161,7 @@ export default function AiChat() {
             const refData = data.referenceData || null;
             setMessages(prev => [...prev, { role: 'assistant', text, products, referenceData: refData }]);
           }).catch(() => {
-            setMessages(prev => [...prev, { role: 'assistant', text: 'შეცდომა. სცადეთ თავიდან.' }]);
+            setMessages(prev => [...prev, { role: 'assistant', text: t('შეცდომა. სცადეთ თავიდან.','Error. Please try again.','Ошибка. Попробуйте ещё раз.') }]);
           }).finally(() => setLoading(false));
         }, 300);
       }
@@ -221,11 +239,18 @@ export default function AiChat() {
         const reasons = [];
         if (p.brand && p.model) reasons.push(`✓ ${p.brand} ${p.model}${p.year?' '+p.year:''} — ამოცნობილია`);
         if (data.referenceData?.codes?.length) reasons.push(`✓ OEM კოდი ცნობილია`);
-        else if (data.referenceData?.crossRef?.length) reasons.push(`✓ Autodoc კატალოგში ნაპოვნია`);
+        else if (data.referenceData?.crossRef?.length) reasons.push(`✓ კატალოგში ნაპოვნია`);
         else reasons.push(`✗ კატალოგში ვერ მოიძებნა`);
         reasons.push(`✗ სტოკში არ არის`);
-        reasons.push(`✓ შეკვეთა შესაძლებელია`);
+        if (data.autodocFallback?.articles?.length) {
+          reasons.push(`✓ ${data.autodocFallback.articles.length} ვარიანტი ხელმისაწვდომია შეკვეთით`);
+        } else {
+          reasons.push(`✓ შეკვეთა შესაძლებელია`);
+        }
         text = `"${p.part_ka || userMsg}" — ვერ ვიპოვე სტოკში.\n\n${reasons.join('\n')}`;
+        if (data.autodocFallback?.articles?.length) {
+          text += `\n\n📦 შესაძლებელია შეკვეთით მიწოდება (2-4 დღეში):`;
+        }
         if (suggestions.length > 0) {
           text += '\n\nშესაძლოა გულისხმობდით:\n' + suggestions.map((s: string, i: number) => `${i+1}. ${s}`).join('\n');
         }
@@ -237,9 +262,9 @@ export default function AiChat() {
       const _related = data.relatedParts || [];
       const _conf = data.confidence || null;
       const _risk = data.fitmentRisk || null;
-      setMessages(prev => [...prev, { role: 'assistant', text, products, referenceData: refData, explanation: _expl, relatedParts: _related, confidence: _conf, fitmentRisk: _risk, analyticsId: data.analyticsId||null }]);
+      setMessages(prev => [...prev, { role: 'assistant', text, products, referenceData: refData, explanation: _expl, relatedParts: _related, confidence: _conf, fitmentRisk: _risk, analyticsId: data.analyticsId||null, autodocFallback: data.autodocFallback||null }]);
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', text: 'შეცდომა. სცადეთ თავიდან.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', text: t('შეცდომა. სცადეთ თავიდან.','Error. Please try again.','Ошибка. Попробуйте ещё раз.') }]);
     } finally {
       setLoading(false);
     }
@@ -296,7 +321,7 @@ export default function AiChat() {
         ) : (
           <>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <span>AI ძებნა</span>
+            <span>{t('AI ძებნა','AI Search','AI Поиск')}</span>
           </>
         )}
       </button>
@@ -312,7 +337,7 @@ export default function AiChat() {
             <div className="flex-1 min-w-0">
               <div style={{ color: '#f8fafc', fontWeight: 600, fontSize: '14px', letterSpacing: '-0.01em' }}>Kibilov AI ასისტენტი</div>
               <div style={{ color: '#64748b', fontSize: '11px', marginTop: '1px' }}>
-                {vehicleLabel ? <span style={{ color: '#60a5fa' }}>{vehicleLabel}</span> : 'სათადარიგო ნაწილების ჭკვიანი ძიება'}
+                {vehicleLabel ? <span style={{ color: '#60a5fa' }}>{vehicleLabel}</span> : t('სათადარიგო ნაწილების ჭკვიანი ძიება','Smart auto parts search','Умный поиск автозапчастей')}
               </div>
             </div>
             {vehicleLabel && (
@@ -538,6 +563,32 @@ export default function AiChat() {
                       {msg.products.length > 5 && (
                         <p style={{ fontSize: '11px', color: '#64748b', textAlign: 'center', paddingTop: '2px' }}>+ კიდევ {msg.products.length - 5} შედეგი</p>
                       )}
+                    </div>
+                  )}
+                  {(msg as any).autodocFallback && (msg as any).autodocFallback.articles?.length > 0 && (
+                    <div className="mt-3" style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '10px 12px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: '#92400e', marginBottom: '8px' }}>
+                        📦 შესაძლებელია შეკვეთით მიწოდება (2-4 დღეში)
+                      </div>
+                      <div className="space-y-2">
+                        {(msg as any).autodocFallback.articles.slice(0, 5).map((a: any, i: number) => (
+                          <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#ffffff', border: '1px solid #f1f5f9', borderRadius: '8px', padding: '6px 8px' }}>
+                            {a.image && (
+                              <img src={a.image} alt={a.desc} style={{ width: '40px', height: '40px', objectFit: 'contain', borderRadius: '4px', flexShrink: 0, background: '#f8fafc' }}
+                                onError={(e)=>{(e.target as HTMLImageElement).style.display='none'}} />
+                            )}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#1e293b' }}>{a.desc}</div>
+                              <div style={{ fontSize: '10px', color: '#94a3b8' }}>{a.brand} · {a.code}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <a href={`https://wa.me/995577575052?text=${encodeURIComponent('გამარჯობა! მაინტერესებს: ' + ((msg as any).autodocFallback.matchedCategory||'') + ' (' + ((msg as any).autodocFallback.articles[0]?.brand||'') + ' ' + ((msg as any).autodocFallback.articles[0]?.code||'') + ')')}`}
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'block', marginTop: '8px', textAlign: 'center', fontSize: '12px', background: '#16a34a', color: '#fff', padding: '8px', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}>
+                        💬 დაგვიკავშირდით შესაკვეთად
+                      </a>
                     </div>
                   )}
                   {msg.referenceData && msg.referenceData.codes && msg.referenceData.codes.length > 0 && (
