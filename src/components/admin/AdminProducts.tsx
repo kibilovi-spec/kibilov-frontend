@@ -201,6 +201,7 @@ export function AdminProducts() {
   const openEditFull = (p: any) => {
     setEditFull(p);
     setEditForm({
+      sku: p.sku||'',
       nameKa: p.nameKa||'', nameEn: p.nameEn||'', nameRu: p.nameRu||'',
       brand: p.brand||'', articleNumber: p.articleNumber||'',
       price: p.price||'', stock: p.stock||0,
@@ -215,6 +216,7 @@ export function AdminProducts() {
     setEditSaving(true);
     try {
       await api.put(`/api/products/${editFull.id}`, {
+        sku: editForm.sku,
         nameKa: editForm.nameKa,
         nameEn: editForm.nameEn,
         nameRu: editForm.nameRu,
@@ -557,15 +559,20 @@ export function AdminProducts() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">ბრენდი</label>
-                  <input className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={editForm.brand} onChange={e=>setEditForm((f:any)=>({...f,brand:e.target.value}))} />
+                  <label className="text-xs text-gray-500 mb-1 block">SKU (თქვენი კოდი)</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    value={editForm.sku} onChange={e=>setEditForm((f:any)=>({...f,sku:e.target.value}))} />
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">OEM კოდი</label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={editForm.articleNumber} onChange={e=>setEditForm((f:any)=>({...f,articleNumber:e.target.value}))} />
                 </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">ბრენდი</label>
+                <input className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={editForm.brand} onChange={e=>setEditForm((f:any)=>({...f,brand:e.target.value}))} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
