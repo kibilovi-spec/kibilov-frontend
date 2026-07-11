@@ -167,6 +167,7 @@ export function SupplierDashboardPage() {
             <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3 sm:flex-wrap">
               <Link href="/supplier/listings" className="bg-blue-600 text-white px-3 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition text-sm text-center">{t('+ ახალი','+ New','+ Новый')}</Link>
               <Link href="/supplier/listings" className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-xl font-bold hover:bg-gray-50 transition text-sm text-center">{t('📦 განთავსებები','📦 Listings','📦 Товары')}</Link>
+              <Link href="/supplier/shipments" className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-xl font-bold hover:bg-gray-50 transition text-sm text-center">{t('🚚 შეკვეთები','🚚 Shipments','🚚 Заказы')}</Link>
               <Link href="/supplier/support" className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-xl font-bold hover:bg-gray-50 transition text-sm text-center">{t('💬 მხარდაჭერა','💬 Support','💬 Поддержка')}</Link>
               <Link href="/supplier/profile" className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-xl font-bold hover:bg-gray-50 transition text-sm text-center">{t('⚙️ პროფილი','⚙️ Profile','⚙️ Профиль')}</Link>
               <Link href="/supplier/integration" className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-xl font-bold hover:bg-gray-50 transition text-sm text-center">{t('🔌 ინტეგრაცია','🔌 Integration','🔌 Интеграция')}</Link>
@@ -703,6 +704,105 @@ export function SupplierIntegrationPage() {
             </table>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+const STATUS_LABELS_GE: Record<string, string> = {
+  PENDING_CONFIRMATION: 'ველოდებით დადასტურებას',
+  READY_FOR_PICKUP: 'მზადაა აღებისთვის',
+  COURIER_SEARCHING: 'კურიერს ვეძებთ',
+  COURIER_ASSIGNED: 'კურიერი მინიჭებულია',
+  PICKED_UP: 'აღებულია',
+  DELIVERED: 'ჩაბარებულია',
+  FAILED: 'ვერ ჩაბარდა',
+};
+const STATUS_COLORS: Record<string, string> = {
+  PENDING_CONFIRMATION: 'bg-yellow-100 text-yellow-700',
+  READY_FOR_PICKUP: 'bg-blue-100 text-blue-700',
+  COURIER_SEARCHING: 'bg-purple-100 text-purple-700',
+  COURIER_ASSIGNED: 'bg-indigo-100 text-indigo-700',
+  PICKED_UP: 'bg-orange-100 text-orange-700',
+  DELIVERED: 'bg-green-100 text-green-700',
+  FAILED: 'bg-red-100 text-red-700',
+};
+
+export function SupplierShipmentsPage() {
+  const [shipments, setShipments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  const load = () => {
+    api.get('/api/shipments/mine').then(r => setShipments(r.data.data || [])).catch(() => {}).finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, []);
+
+  const markReady = async (id: string) => {
+    setProcessingId(id);
+    try {
+      await api.post(`/api/shipments/${id}/ready`);
+      load();
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'შეცდომა');
+    }
+    setProcessingId(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-5xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">🚚 შესასრულებელი შეკვეთები</h1>
+          <Link href="/supplier/dashboard" className="text-sm text-blue-600 hover:underline">← დაშბორდი</Link>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-16 text-gray-400">იტვირთება...</div>
+        ) : shipments.length === 0 ? (
+          <div className="bg-white rounded-2xl p-10 text-center border border-gray-100">
+            <p className="text-4xl mb-3">📭</p>
+            <p className="text-gray-500">ამჟამად შესასრულებელი შეკვეთა არ არის</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {shipments.map((s: any) => (
+              <div key={s.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-bold text-gray-800">შეკვეთა #{s.order?.orderNumber?.slice(0, 8) || s.orderId.slice(0, 8)}</span>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${STATUS_COLORS[s.status] || 'bg-gray-100 text-gray-600'}`}>
+                    {STATUS_LABELS_GE[s.status] || s.status}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">ჩაბარების მისამართი</p>
+                    <p className="text-gray-700">{s.deliveryAddress}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">მომხმარებელი</p>
+                    <p className="text-gray-700">{s.order?.customerName} · {s.order?.customerPhone}</p>
+                  </div>
+                </div>
+                <div className="border-t border-gray-100 pt-3 space-y-1 mb-3">
+                  {(s.items || []).map((it: any) => (
+                    <div key={it.id} className="flex justify-between text-sm text-gray-600">
+                      <span>{it.orderItem?.nameKa} × {it.qty}</span>
+                    </div>
+                  ))}
+                </div>
+                {s.status === 'PENDING_CONFIRMATION' && (
+                  <button
+                    onClick={() => markReady(s.id)}
+                    disabled={processingId === s.id}
+                    className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold hover:bg-blue-700 disabled:opacity-60 transition">
+                    {processingId === s.id ? 'მუშავდება...' : '✅ მზადაა აღებისთვის'}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
