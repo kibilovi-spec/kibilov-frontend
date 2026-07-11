@@ -69,6 +69,7 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
       }
     } catch { window.location.href = '/products?search='+encodeURIComponent(oem); }
   };
+  const router = useRouter();
   const [featured, setFeatured] = useState<Product[]>(initialFeatured);
   const [loadingFeatured, setLoadingFeatured] = useState(!(initialFeatured && initialFeatured.length > 0));
 
@@ -341,7 +342,7 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
           <div style={{fontSize:'11px',fontWeight:700,color:'#fff',display:'flex',alignItems:'center',gap:'5px'}}><span>🔍</span> სწრაფი ძებნა</div>
           <div style={{display:'flex',flexDirection:'column',gap:'5px'}}>
             <div style={{color:'#93c5fd',fontSize:'9px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.5px'}}>📷 VIN კოდი</div>
-            <input id="vin-search-input" style={{width:'100%',fontSize:'11px',padding:'7px 9px',borderRadius:'6px',border:'1px solid rgba(255,255,255,0.2)',background:'rgba(0,0,0,0.25)',color:'#fff',outline:'none',boxSizing:'border-box' as 'border-box'}} placeholder="VIN (17 სიმბოლო)" onKeyDown={e=>{if(e.key==='Enter'){const el=e.target as HTMLInputElement;if(el.value.trim()){window.dispatchEvent(new CustomEvent('kibilov-ai-search',{detail:el.value.trim()}));el.value=''}}}}/>
+            <input id="vin-search-input" style={{width:'100%',fontSize:'11px',padding:'7px 9px',borderRadius:'6px',border:'1px solid rgba(255,255,255,0.2)',background:'rgba(0,0,0,0.25)',color:'#fff',outline:'none',boxSizing:'border-box' as 'border-box'}} placeholder="VIN (17 სიმბოლო)" onKeyDown={e=>{if(e.key==='Enter'){const el=e.target as HTMLInputElement;const val=el.value.trim();if(val){if(/^[A-HJ-NPR-Z0-9]{17}$/i.test(val)){router.push(`/vin?vin=${val.toUpperCase()}`);}else{router.push(`/products?search=${encodeURIComponent(val)}`);}el.value=''}}}}/>
             <div style={{display:'flex',gap:'6px'}}>
               <button onClick={()=>{const el=document.getElementById('vin-search-input') as HTMLInputElement;if(el?.value.trim()){window.location.href='/vin?vin='+encodeURIComponent(el.value.trim())}}} style={{flex:1,background:'rgba(255,255,255,0.9)',color:'#0066CC',border:'none',borderRadius:'6px',padding:'7px',fontSize:'11px',fontWeight:700,cursor:'pointer'}}>ძებნა →</button>
               <Link href="/vin?tab=camera" style={{background:'rgba(255,255,255,0.15)',color:'#fff',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'6px',padding:'7px 10px',fontSize:'11px',textDecoration:'none',display:'flex',alignItems:'center'}}>📷</Link>
