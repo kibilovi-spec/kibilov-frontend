@@ -76,6 +76,41 @@ export default function OrderPage() {
           </div>
         </div>
 
+        {order.shipments && order.shipments.length > 0 && (
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <h2 className="font-bold text-gray-800 mb-3">🚚 მიწოდების სტატუსი</h2>
+            <div className="space-y-3">
+              {order.shipments.map((s: any) => {
+                const shipStatusNames: Record<string, string> = {
+                  PENDING_CONFIRMATION: 'ველოდებით დადასტურებას',
+                  READY_FOR_PICKUP: 'მზადაა გასაგზავნად',
+                  COURIER_SEARCHING: 'ვეძებთ კურიერს',
+                  COURIER_ASSIGNED: 'კურიერი გზაშია',
+                  PICKED_UP: 'ნაწილი აღებულია',
+                  DELIVERED: 'ჩაბარებულია',
+                  FAILED: 'მიწოდება ვერ შედგა',
+                };
+                const shipStatusColors: Record<string, string> = {
+                  PENDING_CONFIRMATION: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                  READY_FOR_PICKUP: 'bg-blue-50 text-blue-700 border-blue-200',
+                  COURIER_SEARCHING: 'bg-purple-50 text-purple-700 border-purple-200',
+                  COURIER_ASSIGNED: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                  PICKED_UP: 'bg-orange-50 text-orange-700 border-orange-200',
+                  DELIVERED: 'bg-green-50 text-green-700 border-green-200',
+                  FAILED: 'bg-red-50 text-red-700 border-red-200',
+                };
+                return (
+                  <div key={s.id} className={`rounded-xl border p-3 ${shipStatusColors[s.status] || 'bg-gray-50 border-gray-200'}`}>
+                    <p className="font-bold text-sm">{shipStatusNames[s.status] || s.status}</p>
+                    {s.courierName && <p className="text-xs mt-1">🚴 კურიერი: {s.courierName} {s.courierPhone ? '· ' + s.courierPhone : ''}</p>}
+                    {s.trackingUrl && <a href={s.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-xs underline mt-1 inline-block">კურიერის თვალყურის დევნება →</a>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-3">
           <Link href="/" className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold text-center hover:bg-blue-700 transition">მთავარი</Link>
           <Link href="/orders" className="flex-1 border border-gray-200 py-3 rounded-xl font-bold text-center hover:bg-gray-50 transition text-gray-700">ჩემი შეკვეთები</Link>
