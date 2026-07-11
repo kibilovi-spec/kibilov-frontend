@@ -349,8 +349,8 @@ export function HomePage({ initialCategories = [], initialFeatured = [] }: { ini
           </div>
           <div style={{height:'1px',background:'rgba(255,255,255,0.15)'}}/>
           <div style={{display:'flex',flexDirection:'column',gap:'5px'}}>
-            <div style={{color:'#93c5fd',fontSize:'9px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.5px'}}>🔧 OEM კოდი</div>
-            <OemAutocomplete onSearch={searchOem} placeholder="OEM (მაგ.: 2115401717)" />
+            <div style={{color:'#93c5fd',fontSize:'9px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.5px'}}>🔧 OEM / ბარკოდი</div>
+            <OemAutocomplete onSearch={searchOem} placeholder="OEM ან ბარკოდი (მაგ.: 2115401717)" />
             <button onClick={()=>{const el=document.querySelector('input[placeholder*="OEM"]') as HTMLInputElement;if(el?.value.trim()){searchOem(el.value.trim())}}} style={{width:'100%',background:'rgba(255,255,255,0.9)',color:'#0066CC',border:'none',borderRadius:'6px',padding:'7px',fontSize:'11px',fontWeight:700,cursor:'pointer'}}>ძებნა →</button>
           </div>
         </div>
