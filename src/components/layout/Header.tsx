@@ -581,7 +581,7 @@ function CheckoutModal({ onClose, onBack, lang }: { onClose:()=>void; onBack:()=
       const order = r.data.order || r.data;
       if (form.paymentMethod !== 'CASH') {
         const payR = await api.post(`/api/payment/${form.paymentMethod.toLowerCase()}/init`, { orderId: order.id });
-        if (payR.data.redirectUrl) { window.location.href = payR.data.redirectUrl; return; }
+        if (payR.data.paymentUrl) { window.location.href = payR.data.paymentUrl; return; }
       }
       clearCart(); router.push('/orders'); onClose();
     } catch(e:any) { alert(e.response?.data?.error || 'შეცდომა'); } finally { setLoading(false); }
@@ -615,8 +615,7 @@ function CheckoutModal({ onClose, onBack, lang }: { onClose:()=>void; onBack:()=
             <h3 className="font-semibold mb-3">{lang==='en'?'Payment':lang==='ru'?'Оплата':'გადახდა'}</h3>
             <div className="space-y-2">
               {[
-                { value:'BOG', label:'BOG Bank', desc:lang==='en'?'Card (BOG)':lang==='ru'?'Карта BOG':'BOG ბარათი' },
-                { value:'TBC', label:'TBC Bank', desc:lang==='en'?'Card (TBC)':lang==='ru'?'Карта TBC':'TBC ბარათი' },
+                { value:'FLITT', label:lang==='en'?'Card':lang==='ru'?'Карта':'ბარათით', desc:lang==='en'?'Online payment':lang==='ru'?'Онлайн-оплата':'ონლაინ გადახდა' },
                 { value:'CASH', label:lang==='en'?'Cash':lang==='ru'?'Наличные':'ნაღდი', desc:lang==='en'?'Pay on delivery':lang==='ru'?'При получении':'მიტანისას' },
               ].map(opt=>(
                 <label key={opt.value} className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${form.paymentMethod===opt.value?'border-primary bg-primary/5':'border-gray-2 hover:border-gray-3'}`}>
