@@ -560,7 +560,7 @@ function CheckoutModal({ onClose, onBack, lang }: { onClose:()=>void; onBack:()=
   const { user } = useAuth();
   const router = useRouter();
   const [zones, setZones] = useState<any[]>([]);
-  const [form, setForm] = useState({ city:'', street:'', apartment:'', zone:'RUSTAVI', paymentMethod:'CASH' });
+  const [form, setForm] = useState({ city:'', street:'', apartment:'', zone:'RUSTAVI', paymentMethod:'FLITT' });
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [loading, setLoading] = useState(false);
   const subtotal = items.reduce((s,i) => s+i.price*i.quantity, 0);
@@ -579,10 +579,8 @@ function CheckoutModal({ onClose, onBack, lang }: { onClose:()=>void; onBack:()=
     try {
       const r = await api.post('/api/orders', { address: { city:form.city, street:form.street, apartment:form.apartment, zone:form.zone }, deliveryZone: form.zone, paymentMethod: form.paymentMethod });
       const order = r.data.order || r.data;
-      if (form.paymentMethod !== 'CASH') {
-        const payR = await api.post(`/api/payment/${form.paymentMethod.toLowerCase()}/init`, { orderId: order.id });
-        if (payR.data.paymentUrl) { window.location.href = payR.data.paymentUrl; return; }
-      }
+      const payR = await api.post('/api/payment/flitt/init', { orderId: order.id });
+      if (payR.data.paymentUrl) { clearCart(); window.location.href = payR.data.paymentUrl; return; }
       clearCart(); router.push('/orders'); onClose();
     } catch(e:any) { alert(e.response?.data?.error || 'შეცდომა'); } finally { setLoading(false); }
   };
@@ -613,17 +611,9 @@ function CheckoutModal({ onClose, onBack, lang }: { onClose:()=>void; onBack:()=
           </div>
           <div>
             <h3 className="font-semibold mb-3">{lang==='en'?'Payment':lang==='ru'?'Оплата':'გადახდა'}</h3>
-            <div className="space-y-2">
-              {[
-                { value:'FLITT', label:lang==='en'?'Card':lang==='ru'?'Карта':'ბარათით', desc:lang==='en'?'Online payment':lang==='ru'?'Онлайн-оплата':'ონლაინ გადახდა' },
-                { value:'CASH', label:lang==='en'?'Cash':lang==='ru'?'Наличные':'ნაღდი', desc:lang==='en'?'Pay on delivery':lang==='ru'?'При получении':'მიტანისას' },
-              ].map(opt=>(
-                <label key={opt.value} className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${form.paymentMethod===opt.value?'border-primary bg-primary/5':'border-gray-2 hover:border-gray-3'}`}>
-                  <input type="radio" name="payment" value={opt.value} checked={form.paymentMethod===opt.value} onChange={e=>setForm(p=>({...p,paymentMethod:e.target.value}))} className="hidden" />
-                  <div><div className="font-semibold text-sm">{opt.label}</div><div className="text-xs text-text3">{opt.desc}</div></div>
-                  {form.paymentMethod===opt.value && <span className="ml-auto text-primary font-bold">✓</span>}
-                </label>
-              ))}
+            <div className="flex items-center gap-3 p-4 border-2 border-primary bg-primary/5 rounded-xl">
+              <div><div className="font-semibold text-sm">{lang==='en'?'Card':lang==='ru'?'Карта':'ბარათით'}</div><div className="text-xs text-text3">{lang==='en'?'Online payment':lang==='ru'?'Онлайн-оплата':'ონლაინ გადახდა'}</div></div>
+              <span className="ml-auto text-primary font-bold">✓</span>
             </div>
           </div>
           <div className="bg-gray-bg rounded-xl p-4 space-y-2 text-sm">
@@ -634,7 +624,7 @@ function CheckoutModal({ onClose, onBack, lang }: { onClose:()=>void; onBack:()=
         </div>
         <div className="p-5 border-t border-gray-1">
           <button onClick={placeOrder} disabled={loading||!form.city||!form.street} className="btn-primary w-full text-base py-3 disabled:opacity-50">
-            {loading ? '...' : form.paymentMethod==='CASH' ? (lang==='en'?'Place Order':lang==='ru'?'Оформить':'შეკვეთის გაფორმება') : (lang==='en'?'Pay Now':lang==='ru'?'Перейти к оплате':'გადახდაზე გადასვლა')} →
+            {loading ? '...' : (lang==='en'?'Pay Now':lang==='ru'?'Перейти к оплате':'გადახდაზე გადასვლა')} →
           </button>
         </div>
       </div>
