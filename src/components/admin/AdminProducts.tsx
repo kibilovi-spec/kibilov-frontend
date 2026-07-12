@@ -202,6 +202,7 @@ export function AdminProducts() {
     setEditFull(p);
     setEditForm({
       sku: p.sku||'',
+      dataLocked: p.dataLocked ?? true,
       nameKa: p.nameKa||'', nameEn: p.nameEn||'', nameRu: p.nameRu||'',
       brand: p.brand||'', articleNumber: p.articleNumber||'',
       price: p.price||'', stock: p.stock||0,
@@ -217,6 +218,7 @@ export function AdminProducts() {
     try {
       await api.put(`/api/products/${editFull.id}`, {
         sku: editForm.sku,
+        dataLocked: editForm.dataLocked,
         nameKa: editForm.nameKa,
         nameEn: editForm.nameEn,
         nameRu: editForm.nameRu,
@@ -476,7 +478,7 @@ export function AdminProducts() {
                   <tr><td colSpan={8} className="py-12 text-center text-gray-400">პროდუქტები ვერ მოიძებნა</td></tr>
                 ) : products.map((p:any) => (
                   <tr key={p.id} className={`hover:bg-gray-50 ${p.stock <= 3 ? 'bg-red-50' : ''}`}>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{p.sku}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{p.sku} {p.dataLocked && <span title="დაცულია ავტომატური re-import-ისგან">🔒</span>}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         {p.images?.[0] && <img src={p.images[0]} className="w-10 h-10 object-cover rounded-lg" alt=""/>}
@@ -614,6 +616,11 @@ export function AdminProducts() {
                 <input type="checkbox" checked={editForm.isActive} onChange={e=>setEditForm((f:any)=>({...f,isActive:e.target.checked}))}
                   className="w-4 h-4 accent-blue-600"/>
                 <span className="text-sm text-gray-700">აქტიური (ჩანს საიტზე)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={editForm.dataLocked} onChange={e=>setEditForm((f:any)=>({...f,dataLocked:e.target.checked}))}
+                  className="w-4 h-4 accent-amber-600"/>
+                <span className="text-sm text-gray-700">🔒 დაცვა ავტომატური re-import-ისგან (ბრენდი/OEM/კატეგორია)</span>
               </label>
             </div>
             <div className="flex gap-2 mt-4">
