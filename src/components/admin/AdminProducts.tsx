@@ -262,6 +262,25 @@ export function AdminProducts() {
   const [finaImporting, setFinaImporting] = useState(false);
   const [finaResult, setFinaResult] = useState<any>(null);
   const [finaModal, setFinaModal] = useState(false);
+  const [bulkImgModal, setBulkImgModal] = useState(false);
+  const [bulkImgFiles, setBulkImgFiles] = useState<File[]>([]);
+  const [bulkImgUploading, setBulkImgUploading] = useState(false);
+  const [bulkImgResult, setBulkImgResult] = useState<any>(null);
+  const submitBulkImages = async () => {
+    if (!bulkImgFiles.length) return;
+    setBulkImgUploading(true);
+    setBulkImgResult(null);
+    try {
+      const formData = new FormData();
+      bulkImgFiles.forEach(f => formData.append('images', f));
+      const { data } = await api.post('/api/admin/bulk-image-upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setBulkImgResult(data);
+      fetch();
+    } catch (e: any) {
+      setBulkImgResult({ error: e.response?.data?.error || e.message });
+    }
+    setBulkImgUploading(false);
+  };
   const [finaStatus, setFinaStatus] = useState<any>(null);
   const finaPollRef = { current: null as any };
 
@@ -356,6 +375,10 @@ export function AdminProducts() {
               className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-60">
               {syncing ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : null}
               FINA sync
+            </button>
+            <button onClick={()=>{setBulkImgModal(true); setBulkImgResult(null); setBulkImgFiles([]);}}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700">
+              📷 სურათების ატვირთვა
             </button>
             <button className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm cursor-pointer hover:bg-green-700 transition"
               onClick={()=>{
@@ -675,6 +698,61 @@ export function AdminProducts() {
               </div>
             ))}
             <button onClick={()=>setFinaResult(null)} className="btn-primary w-full mt-4">დახურვა</button>
+          </div>
+        </div>
+      )}
+
+      {bulkImgModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>!bulkImgUploading && setBulkImgModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+            <h3 className="font-bold text-lg mb-2">📷 სურათების ატვირთვა</h3>
+            <p className="text-xs text-gray-500 mb-4">აირჩიე ფოლდერი — ყოველი სურათის სახელი უნდა იყოს SKU კოდი (მაგ. 002005.jpg). რამდენიმე სურათი ერთ პროდუქტზე: 002005_2.jpg, 002005_3.jpg.</p>
+            {!bulkImgResult ? (
+              <>
+                <label className="block border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-purple-500 transition mb-4">
+                  <input type="file" multiple {...({ webkitdirectory: 'true', directory: 'true' } as any)}
+                    onChange={e=>setBulkImgFiles(Array.from(e.target.files||[]))}
+                    className="hidden" />
+                  <span className="text-4xl block mb-2">📁</span>
+                  <span className="text-sm text-gray-600">{bulkImgFiles.length ? `${bulkImgFiles.length} ფაილი არჩეულია` : 'დააჭირე ფოლდერის ასარჩევად'}</span>
+                </label>
+                <div className="flex gap-2">
+                  <button onClick={()=>setBulkImgModal(false)} disabled={bulkImgUploading} className="flex-1 border rounded-lg py-2 text-sm disabled:opacity-50">გაუქმება</button>
+                  <button onClick={submitBulkImages} disabled={bulkImgUploading || !bulkImgFiles.length}
+                    className="flex-1 bg-purple-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-purple-700 disabled:opacity-60">
+                    {bulkImgUploading ? '⏳ იტვირთება...' : `✅ ატვირთვა (${bulkImgFiles.length})`}
+                  </button>
+                </div>
+              </>
+            ) : bulkImgResult.error ? (
+              <>
+                <p className="text-red-500 text-sm mb-4">❌ {bulkImgResult.error}</p>
+                <button onClick={()=>setBulkImgModal(false)} className="btn-primary w-full">დახურვა</button>
+              </>
+            ) : (
+              <>
+                <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
+                  <p className="text-sm font-medium text-green-800">✅ დაკავშირდა: {bulkImgResult.matched?.length || 0} პროდუქტი</p>
+                </div>
+                {bulkImgResult.unmatched?.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 max-h-40 overflow-y-auto">
+                    <p className="text-sm font-medium text-amber-800 mb-1">⚠️ ვერ მოიძებნა SKU ({bulkImgResult.unmatched.length}):</p>
+                    {bulkImgResult.unmatched.map((f:string, i:number) => (
+                      <p key={i} className="text-xs text-amber-700 font-mono">{f}</p>
+                    ))}
+                  </div>
+                )}
+                {bulkImgResult.errors?.length > 0 && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-3 max-h-40 overflow-y-auto">
+                    <p className="text-sm font-medium text-red-800 mb-1">❌ შეცდომები ({bulkImgResult.errors.length}):</p>
+                    {bulkImgResult.errors.map((e:string, i:number) => (
+                      <p key={i} className="text-xs text-red-700">{e}</p>
+                    ))}
+                  </div>
+                )}
+                <button onClick={()=>{setBulkImgModal(false); setBulkImgResult(null); setBulkImgFiles([]);}} className="btn-primary w-full mt-2">დახურვა</button>
+              </>
+            )}
           </div>
         </div>
       )}
