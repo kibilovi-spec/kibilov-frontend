@@ -1,10 +1,22 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { useCart, useAuth } from '@/store';
 import { useLang } from '@/store';
 import { useT } from '@/lib/i18n';
 import Link from 'next/link';
 import { openAuth } from '@/components/layout/Header';
 import { usePageTitle } from '@/hooks/usePageTitle';
+
+// ჯავშნის დარჩენილი დროის ფორმატირება (MM:SS), null თუ ჯავშანი არ არსებობს/ამოიწურა
+function formatReservation(reservedUntil?: string | null): { text: string; urgent: boolean } | null {
+  if (!reservedUntil) return null;
+  const diffMs = new Date(reservedUntil).getTime() - Date.now();
+  if (diffMs <= 0) return { text: 'ჯავშანი ამოიწურა', urgent: true };
+  const totalSec = Math.floor(diffMs / 1000);
+  const mm = Math.floor(totalSec / 60);
+  const ss = totalSec % 60;
+  return { text: `${mm}:${ss.toString().padStart(2, '0')}`, urgent: totalSec < 180 };
+}
 
 export default function CartPage() {
   const { items, removeItem, updateItem, fetchCart } = useCart();
@@ -13,6 +25,13 @@ export default function CartPage() {
   const { lang } = useLang();
   const t = useT(lang);
   usePageTitle('კალათა | kibilov.ge');
+
+  // ყოველ წამში "tick" — countdown-ების განახლებისთვის
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (items.length === 0) return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
@@ -39,6 +58,15 @@ export default function CartPage() {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm text-gray-800 truncate">{item.name}</p>
                 <p className="text-blue-600 font-bold">{Number((item.price||item.product?.price||0)).toFixed(2)}₾</p>
+                {(() => {
+                  const r = formatReservation(item.reservedUntil);
+                  if (!r) return null;
+                  return (
+                    <p className={`text-xs mt-1 font-medium ${r.urgent ? 'text-red-600' : 'text-gray-400'}`}>
+                      ⏱ დაცულია: {r.text}
+                    </p>
+                  );
+                })()}
               </div>
               <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
                 <button onClick={() => updateItem(item.productId, Math.max(1, item.quantity - 1))}

@@ -52,6 +52,7 @@ export const useAuth = create<AuthState>((set) => ({
 // ── Cart Store ────────────────────────────────────────────────────────────────
 interface CartItem {
   id: string; productId: string; quantity: number; price: number;
+  reservedUntil?: string | null;
   product?: { nameKa: string; images: string[]; sku: string; stock: number; };
 }
 interface CartState {
