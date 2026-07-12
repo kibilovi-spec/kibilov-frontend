@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useCart, useAuth } from '@/store';
 import { useLang } from '@/store';
 import { useT } from '@/lib/i18n';
@@ -19,6 +20,7 @@ function formatReservation(reservedUntil?: string | null): { text: string; urgen
 }
 
 export default function CartPage() {
+  const router = useRouter();
   const { items, removeItem, updateItem, fetchCart } = useCart();
   const total = items.reduce((s:number, i:any) => s + (Number(i.price||i.product?.price||0) * i.quantity), 0);
   const { user } = useAuth();
@@ -93,9 +95,9 @@ export default function CartPage() {
               className="flex items-center justify-center gap-2 w-full bg-green-500 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-600">
               📱 WhatsApp-ით შეკვეთა
             </a>
-            <button onClick={() => { if (!user) { openAuth(); return; } }}
-              className="w-full border-2 border-blue-600 text-blue-600 py-4 rounded-xl font-bold hover:bg-blue-50">
-              💳 ონლაინ გადახდა (მალე)
+            <button onClick={() => { if (!user) { openAuth(); return; } router.push('/checkout'); }}
+              className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700">
+              💳 ონლაინ გადახდა
             </button>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
